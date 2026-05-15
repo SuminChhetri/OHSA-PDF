@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc.js";
+import { router, protectedProcedure } from "../trpc";
 import { checkITAEligibility, checkExemption } from "@osha/regulatory-logic";
 
 export const itaCheckRouter = router({

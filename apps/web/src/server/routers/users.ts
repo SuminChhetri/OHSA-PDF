@@ -1,6 +1,6 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { router, adminProcedure, protectedProcedure } from "../trpc.js";
+import { router, adminProcedure, protectedProcedure } from "../trpc";
 
 const VALID_ROLES = ["ADMIN", "RECORDKEEPER", "REVIEWER", "EXECUTIVE"] as const;
 

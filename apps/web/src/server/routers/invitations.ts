@@ -14,7 +14,7 @@
 import crypto from "crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, ownerProcedure, protectedProcedure } from "../trpc.js";
+import { router, ownerProcedure, protectedProcedure } from "../trpc";
 
 const VALID_ROLES = ["OWNER", "EDITOR", "SENSITIVE_REVIEWER", "REVIEWER", "DOWNLOAD_REVIEWER"] as const;
 

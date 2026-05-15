@@ -1,15 +1,15 @@
-import { router } from "../trpc.js";
-import { usersRouter } from "./users.js";
-import { establishmentsRouter } from "./establishments.js";
-import { reportingYearsRouter } from "./reportingYears.js";
-import { casesRouter } from "./cases.js";
-import { wizardRouter } from "./wizard.js";
-import { formsRouter } from "./forms.js";
-import { metricsRouter } from "./metrics.js";
-import { exportRouter } from "./export.js";
-import { itaCheckRouter } from "./itaCheck.js";
-import { auditRouter } from "./audit.js";
-import { invitationsRouter } from "./invitations.js";
+import { router } from "../trpc";
+import { usersRouter } from "./users";
+import { establishmentsRouter } from "./establishments";
+import { reportingYearsRouter } from "./reportingYears";
+import { casesRouter } from "./cases";
+import { wizardRouter } from "./wizard";
+import { formsRouter } from "./forms";
+import { metricsRouter } from "./metrics";
+import { exportRouter } from "./export";
+import { itaCheckRouter } from "./itaCheck";
+import { auditRouter } from "./audit";
+import { invitationsRouter } from "./invitations";
 
 export const appRouter = router({
   users: usersRouter,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure, recordkeeperProcedure } from "../trpc.js";
+import { router, protectedProcedure, recordkeeperProcedure } from "../trpc";
 import { checkExemption, checkITAEligibility } from "@osha/regulatory-logic";
 
 const EstablishmentInput = z.object({

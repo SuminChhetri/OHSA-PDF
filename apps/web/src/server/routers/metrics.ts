@@ -21,7 +21,7 @@
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc.js";
+import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 const BASE_HOURS = 200_000; // 100 FTE × 2,000 hrs/yr

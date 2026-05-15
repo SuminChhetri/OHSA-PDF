@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod";
-import { router, protectedProcedure, recordkeeperProcedure, adminProcedure } from "../trpc.js";
+import { router, protectedProcedure, recordkeeperProcedure, adminProcedure } from "../trpc";
 
 export const exportRouter = router({
   /**

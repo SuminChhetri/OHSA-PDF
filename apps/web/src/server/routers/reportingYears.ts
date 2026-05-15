@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure, recordkeeperProcedure, executiveProcedure } from "../trpc.js";
+import { router, protectedProcedure, recordkeeperProcedure, executiveProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 export const reportingYearsRouter = router({

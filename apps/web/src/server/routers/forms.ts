@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc.js";
+import { router, protectedProcedure } from "../trpc";
 import { EXCLUDED_FIELDS_300, EXCLUDED_FIELDS_301 } from "@osha/regulatory-logic";
 
 export const formsRouter = router({

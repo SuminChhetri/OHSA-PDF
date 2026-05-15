@@ -1,7 +1,7 @@
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import { type Session } from "next-auth";
 import { getServerSession } from "next-auth";
-import { authOptions } from "./auth.js";
+import { authOptions } from "./auth";
 import { prisma } from "@osha/db";
 
 export interface Context {

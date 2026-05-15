@@ -14,15 +14,15 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure, recordkeeperProcedure } from "../trpc.js";
+import { router, protectedProcedure, recordkeeperProcedure } from "../trpc";
 import {
   CaseOutcome,
   CaseType,
   PrivacyReason,
   SeverityLevel,
 } from "@osha/regulatory-logic";
-import { encryptCaseFields, decryptCaseFields } from "../../lib/crypto.js";
-import { canViewSensitiveData, redactCase } from "../../lib/redact.js";
+import { encryptCaseFields, decryptCaseFields } from "../../lib/crypto";
+import { canViewSensitiveData, redactCase } from "../../lib/redact";
 
 // Zod enum helpers derived from regulatory-logic enums
 const zCaseOutcome = z.enum([
