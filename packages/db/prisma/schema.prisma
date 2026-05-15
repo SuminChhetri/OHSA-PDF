@@ -30,8 +30,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  certifications CertificationRecord[]
-  auditLogs      AuditLog[]
+  certifications           CertificationRecord[]
+  auditLogs                AuditLog[]
+  establishmentMemberships EstablishmentMember[] @relation("memberUser")
+  invitedMembers           EstablishmentMember[] @relation("inviterUser")
+  sentInvitations          Invitation[]
 
   @@map("users")
 }
@@ -56,6 +59,8 @@ model Establishment {
   updatedAt DateTime @updatedAt
 
   reportingYears ReportingYear[]
+  members        EstablishmentMember[]
+  invitations    Invitation[]
 
   @@map("establishments")
 }
@@ -243,4 +248,48 @@ model NaicsCode {
   isAppendixBSubpartE Boolean @default(false)
 
   @@map("naics_codes")
+}
+
+// ─── Establishment Members ────────────────────────────────────────────────────
+// Per-establishment role assignments for the invitation system.
+// Role values: OWNER | EDITOR | SENSITIVE_REVIEWER | REVIEWER | DOWNLOAD_REVIEWER
+// (Backwards-compatible with legacy global roles: ADMIN, RECORDKEEPER, EXECUTIVE)
+
+model EstablishmentMember {
+  id              String   @id @default(cuid())
+  userId          String
+  establishmentId String
+  role            String   // scoped role for this establishment
+
+  invitedById String
+  createdAt   DateTime @default(now())
+
+  user          User          @relation("memberUser", fields: [userId], references: [id])
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  invitedBy     User          @relation("inviterUser", fields: [invitedById], references: [id])
+
+  @@unique([userId, establishmentId])
+  @@map("establishment_members")
+}
+
+// ─── Invitation ───────────────────────────────────────────────────────────────
+// Pending email invitations. Token is a random 32-byte hex string.
+// Expires 7 days after creation. Accepted when the invited user creates/links
+// their account — at that point acceptedAt is set and EstablishmentMember is created.
+
+model Invitation {
+  id              String    @id @default(cuid())
+  email           String
+  role            String    // role to assign on acceptance
+  establishmentId String
+  invitedById     String
+  token           String    @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  invitedBy     User          @relation(fields: [invitedById], references: [id])
+
+  @@map("invitations")
 }

@@ -9,6 +9,7 @@ import { metricsRouter } from "./metrics.js";
 import { exportRouter } from "./export.js";
 import { itaCheckRouter } from "./itaCheck.js";
 import { auditRouter } from "./audit.js";
+import { invitationsRouter } from "./invitations.js";
 
 export const appRouter = router({
   users: usersRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   export: exportRouter,
   itaCheck: itaCheckRouter,
   audit: auditRouter,
+  invitations: invitationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -17,6 +17,9 @@ Auto-generated from `packages/db/prisma/schema.prisma`. Do not edit manually.
 | `updatedAt` | `DateTime` | @updatedAt |
 | `certifications` | `CertificationRecord[]` |  |
 | `auditLogs` | `AuditLog[]` |  |
+| `establishmentMemberships` | `EstablishmentMember[]` | @relation("memberUser") |
+| `invitedMembers` | `EstablishmentMember[]` | @relation("inviterUser") |
+| `sentInvitations` | `Invitation[]` |  |
 
 ## `Establishment`
 
@@ -33,6 +36,8 @@ Auto-generated from `packages/db/prisma/schema.prisma`. Do not edit manually.
 | `createdAt` | `DateTime` | @default(now()) |
 | `updatedAt` | `DateTime` | @updatedAt |
 | `reportingYears` | `ReportingYear[]` |  |
+| `members` | `EstablishmentMember[]` |  |
+| `invitations` | `Invitation[]` |  |
 
 ## `ReportingYear`
 
@@ -136,4 +141,34 @@ Auto-generated from `packages/db/prisma/schema.prisma`. Do not edit manually.
 | `title` | `String` |  |
 | `isAppendixASubpartB` | `Boolean` | @default(false) |
 | `isAppendixBSubpartE` | `Boolean` | @default(false) |
+
+## `EstablishmentMember`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | `String` | @id @default(cuid()) |
+| `userId` | `String` |  |
+| `establishmentId` | `String` |  |
+| `role` | `String` | // scoped role for this establishment |
+| `invitedById` | `String` |  |
+| `createdAt` | `DateTime` | @default(now()) |
+| `user` | `User` | @relation("memberUser", fields: [userId], references: [id]) |
+| `establishment` | `Establishment` | @relation(fields: [establishmentId], references: [id]) |
+| `invitedBy` | `User` | @relation("inviterUser", fields: [invitedById], references: [id]) |
+
+## `Invitation`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | `String` | @id @default(cuid()) |
+| `email` | `String` |  |
+| `role` | `String` | // role to assign on acceptance |
+| `establishmentId` | `String` |  |
+| `invitedById` | `String` |  |
+| `token` | `String` | @unique |
+| `expiresAt` | `DateTime` |  |
+| `acceptedAt` | `DateTime?` |  |
+| `createdAt` | `DateTime` | @default(now()) |
+| `establishment` | `Establishment` | @relation(fields: [establishmentId], references: [id]) |
+| `invitedBy` | `User` | @relation(fields: [invitedById], references: [id]) |
 

@@ -2,6 +2,10 @@
  * API route: GET /api/pdf/300/[yearId]
  * Generates a server-side PDF of OSHA Form 300 (Log of Work-Related Injuries and Illnesses).
  * Legal landscape (14in × 8.5in) · 29 CFR 1904.29(b)
+ *
+ * Query params:
+ *   ?redacted=1   Mask narrative description fields (whatHappened).
+ *                 Roles without canDownloadUnredacted always get the redacted version.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -12,6 +16,7 @@ import { authOptions } from "@/server/auth";
 import { appRouter } from "@/server/routers/_app";
 import { createInnerTRPCContext } from "@/server/context";
 import { Form300Pdf, type Form300PdfProps } from "@/lib/pdf/form300";
+import { canDownloadUnredacted } from "@/lib/redact";
 
 export async function GET(
   _req: NextRequest,
@@ -34,6 +39,21 @@ export async function GET(
     return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
   }
 
+  const redactedParam = _req.nextUrl.searchParams.get("redacted");
+  const role = session.user.role;
+  const useRedacted = redactedParam === "1" || !canDownloadUnredacted(role);
+
+  // Log the download event to the audit trail
+  await ctx.prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: useRedacted ? "DOWNLOAD_REDACTED" : "DOWNLOAD_UNREDACTED",
+      entityType: "Form300",
+      entityId: params.yearId,
+      reason: `Form 300 PDF downloaded (${useRedacted ? "redacted" : "unredacted"})`,
+    },
+  });
+
   const { establishment, year } = ry;
 
   const props: Form300PdfProps = {
@@ -44,7 +64,8 @@ export async function GET(
       employeeJobTitle: c.employeeJobTitle ?? "",
       dateOfInjury: c.dateOfInjury,
       whereEventOccurred: c.whereEventOccurred ?? "",
-      whatHappened: c.whatHappened ?? "",
+      // Mask narrative description when redacted
+      whatHappened: useRedacted ? "[REDACTED]" : (c.whatHappened ?? ""),
       isPrivacyCase: c.isPrivacyCase ?? false,
       outcome: c.outcome ?? "",
       daysAway: c.daysAway ?? 0,
@@ -67,7 +88,7 @@ export async function GET(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfBuffer = await renderToBuffer(React.createElement(Form300Pdf, props) as any);
 
-  const filename = `OSHA-300-${establishment.name.replace(/[^a-z0-9]/gi, "_")}-${year}.pdf`;
+  const filename = `OSHA-300-${establishment.name.replace(/[^a-z0-9]/gi, "_")}-${year}${useRedacted ? "-redacted" : ""}.pdf`;
 
   return new Response(new Uint8Array(pdfBuffer), {
     headers: {

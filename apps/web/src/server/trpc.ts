@@ -1,13 +1,22 @@
 /**
- * tRPC v10 server initialisation.
+ * tRPC v10 server initialisation — updated for privacy-by-design role model.
  *
- * Exports:
- *   router        — create type-safe routers
- *   publicProcedure    — no auth required
- *   protectedProcedure — requires authenticated session
- *   adminProcedure     — requires ADMIN role
- *   recordkeeperProcedure — requires ADMIN or RECORDKEEPER
- *   executiveProcedure    — requires ADMIN or EXECUTIVE
+ * Roles (legacy → new):
+ *   ADMIN / OWNER         Full access, invite users, manage establishment
+ *   RECORDKEEPER / EDITOR Create and edit cases
+ *   EXECUTIVE             Certify 300A (1904.32(b)(3))
+ *   SENSITIVE_REVIEWER    View sensitive data, download unredacted PDF
+ *   REVIEWER              Read-only, redacted view only
+ *   DOWNLOAD_REVIEWER     Download permitted (redacted) version only
+ *
+ * Procedure tiers:
+ *   publicProcedure           No auth
+ *   protectedProcedure        Any authenticated user
+ *   adminProcedure            ADMIN or OWNER
+ *   recordkeeperProcedure     ADMIN, OWNER, RECORDKEEPER, or EDITOR
+ *   executiveProcedure        ADMIN, OWNER, or EXECUTIVE
+ *   sensitiveViewProcedure    All except REVIEWER and DOWNLOAD_REVIEWER
+ *   ownerProcedure            OWNER or ADMIN only (invite users, manage permissions)
  */
 
 import { initTRPC, TRPCError } from "@trpc/server";
@@ -32,39 +41,53 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-// ── Auth middleware ───────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const OWNER_ROLES = ["ADMIN", "OWNER"];
+const EDITOR_ROLES = ["ADMIN", "OWNER", "RECORDKEEPER", "EDITOR"];
+const EXECUTIVE_ROLES = ["ADMIN", "OWNER", "EXECUTIVE"];
+const SENSITIVE_ROLES = ["ADMIN", "OWNER", "RECORDKEEPER", "EDITOR", "EXECUTIVE", "SENSITIVE_REVIEWER"];
+
+// ── Middleware ────────────────────────────────────────────────────────────────
 
 const isAuthed = t.middleware(({ ctx, next }) => {
-  if (!ctx.session?.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
+  if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
   return next({ ctx: { session: ctx.session } });
 });
 
 const isAdmin = t.middleware(({ ctx, next }) => {
-  if (!ctx.session?.user || ctx.session.user.role !== "ADMIN") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required." });
+  if (!OWNER_ROLES.includes(ctx.session?.user?.role ?? "")) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Owner or Admin access required." });
   }
-  return next({ ctx: { session: ctx.session } });
+  return next({ ctx: { session: ctx.session! } });
 });
 
 const isRecordkeeperOrAdmin = t.middleware(({ ctx, next }) => {
-  const role = ctx.session?.user?.role;
-  if (!role || !["ADMIN", "RECORDKEEPER"].includes(role)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Recordkeeper or Admin access required." });
+  if (!EDITOR_ROLES.includes(ctx.session?.user?.role ?? "")) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Editor or Admin access required." });
   }
   return next({ ctx: { session: ctx.session! } });
 });
 
 const isExecutiveOrAdmin = t.middleware(({ ctx, next }) => {
-  const role = ctx.session?.user?.role;
-  if (!role || !["ADMIN", "EXECUTIVE"].includes(role)) {
+  if (!EXECUTIVE_ROLES.includes(ctx.session?.user?.role ?? "")) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Executive or Admin access required." });
   }
   return next({ ctx: { session: ctx.session! } });
 });
 
+const canViewSensitive = t.middleware(({ ctx, next }) => {
+  if (!SENSITIVE_ROLES.includes(ctx.session?.user?.role ?? "")) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Sensitive data access not permitted for your role." });
+  }
+  return next({ ctx: { session: ctx.session! } });
+});
+
+// ── Exported procedures ───────────────────────────────────────────────────────
+
 export const protectedProcedure = t.procedure.use(isAuthed);
 export const adminProcedure = t.procedure.use(isAdmin);
+export const ownerProcedure = t.procedure.use(isAdmin);           // alias for clarity
 export const recordkeeperProcedure = t.procedure.use(isRecordkeeperOrAdmin);
 export const executiveProcedure = t.procedure.use(isExecutiveOrAdmin);
+export const sensitiveViewProcedure = t.procedure.use(canViewSensitive);

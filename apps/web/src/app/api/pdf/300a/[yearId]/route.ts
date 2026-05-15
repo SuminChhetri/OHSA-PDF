@@ -2,6 +2,12 @@
  * API route: GET /api/pdf/300a/[yearId]
  * Generates a server-side PDF of OSHA Form 300A (Annual Summary).
  * Letter landscape (11in × 8.5in) · 29 CFR 1904.32
+ *
+ * Query params:
+ *   ?redacted=1   No-op for 300A (aggregate only, no PII), but accepted for
+ *                 consistency. Roles without canDownloadUnredacted still get
+ *                 the full aggregate summary (no PII to redact on this form).
+ *                 The download event is logged as DOWNLOAD_REDACTED for those roles.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -12,6 +18,7 @@ import { authOptions } from "@/server/auth";
 import { appRouter } from "@/server/routers/_app";
 import { createInnerTRPCContext } from "@/server/context";
 import { Form300APdf, type Form300AData } from "@/lib/pdf/form300a";
+import { canDownloadUnredacted } from "@/lib/redact";
 
 export async function GET(
   _req: NextRequest,
@@ -30,6 +37,21 @@ export async function GET(
   if (!data?.establishment) {
     return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
   }
+
+  const redactedParam = _req.nextUrl.searchParams.get("redacted");
+  const role = session.user.role;
+  const useRedacted = redactedParam === "1" || !canDownloadUnredacted(role);
+
+  // Log the download event to the audit trail
+  await ctx.prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: useRedacted ? "DOWNLOAD_REDACTED" : "DOWNLOAD_UNREDACTED",
+      entityType: "Form300A",
+      entityId: params.yearId,
+      reason: `Form 300A PDF downloaded (${useRedacted ? "redacted" : "unredacted"})`,
+    },
+  });
 
   const props: Form300AData = {
     establishment: data.establishment,

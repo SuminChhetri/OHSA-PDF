@@ -52,6 +52,12 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 | `get301` | `protected` | query | Get OSHA Form 301 (Injury and Illness Incident Report) data for one case. Privacy: full PII is included here because the 301 is the confidential record. Government representatives may request access per 1904.40. Access is logged in the audit trail. / |
 | `buildITACsv` | `protected` | query | Build a CSV payload for ITA electronic submission. Applies field exclusions required by 1904.41(c): - Form 300: excludes employee name (column B) - Form 301: excludes employee name, home address, physician name, facility info / |
 
+## `invitations` (`apps/web/src/server/routers/invitations.ts`)
+
+| Procedure | Tier | Kind | Description |
+|-----------|------|------|-------------|
+| `accept` | `protected` | mutation | Accept an invitation by token. Creates user if needed, adds EstablishmentMember. |
+
 ## `itaCheck` (`apps/web/src/server/routers/itaCheck.ts`)
 
 | Procedure | Tier | Kind | Description |

@@ -21,6 +21,8 @@ import {
   PrivacyReason,
   SeverityLevel,
 } from "@osha/regulatory-logic";
+import { encryptCaseFields, decryptCaseFields } from "../../lib/crypto.js";
+import { canViewSensitiveData, redactCase } from "../../lib/redact.js";
 
 // Zod enum helpers derived from regulatory-logic enums
 const zCaseOutcome = z.enum([
@@ -126,7 +128,10 @@ export const casesRouter = router({
         orderBy: { caseNumber: "asc" },
       });
       const role = ctx.session.user.role;
-      return cases.map((c) => applyPrivacyMask(c, role));
+      return cases.map((c) => {
+        const decrypted = decryptCaseFields(applyPrivacyMask(c, role));
+        return canViewSensitiveData(role) ? decrypted : redactCase(decrypted);
+      });
     }),
 
   /** Get a single case (Form 301 view). Logs VIEW_PRIVACY for admin access to privacy cases. */
@@ -149,7 +154,8 @@ export const casesRouter = router({
         });
       }
 
-      return applyPrivacyMask(c, role);
+      const decrypted = decryptCaseFields(applyPrivacyMask(c, role));
+      return canViewSensitiveData(role) ? decrypted : redactCase(decrypted);
     }),
 
   /**
@@ -202,9 +208,11 @@ export const casesRouter = router({
       });
       const caseNumber = `${ry.year}-${String(existingCount + 1).padStart(3, "0")}`;
 
+      const encryptedData = encryptCaseFields({ ...input.caseData });
+
       const created = await ctx.prisma.case.create({
         data: {
-          ...input.caseData,
+          ...encryptedData,
           reportingYearId: input.reportingYearId,
           caseNumber,
           createdById: ctx.session.user.id,
@@ -239,9 +247,11 @@ export const casesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const before = await ctx.prisma.case.findUniqueOrThrow({ where: { id: input.id } });
 
+      const encryptedData = encryptCaseFields({ ...input.caseData });
+
       const updated = await ctx.prisma.case.update({
         where: { id: input.id },
-        data: { ...input.caseData, updatedById: ctx.session.user.id },
+        data: { ...encryptedData, updatedById: ctx.session.user.id },
       });
 
       await ctx.prisma.auditLog.create({
