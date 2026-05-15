@@ -1,24 +1,50 @@
-Improve this OSHA reporting app requirement:
+I am switching my app from SQLite to PostgreSQL.
 
-The system must protect sensitive OSHA and company information so that no one on the software/vendor side can view or access the raw sensitive data, including backend operators, developers, support staff, or database administrators.
+Please review my Prisma setup and make the required changes so the project uses PostgreSQL correctly.
 
-Sensitive data should be protected using privacy-by-design controls such as encryption, strict role-based access, audit logs, and, where possible, field-level encryption or customer-managed encryption keys.
+Current issue:
+Prisma shows this error:
 
-The backend may process sensitive OSHA-related data only for required system functions, such as generating reports, applying redactions, and validating filings. However, the sensitive data must not be visible in plain text to unauthorized users or software-side personnel.
+"The datasource provider `postgresql` specified in your schema does not match the one specified in the migration_lock.toml, `sqlite`. Please remove your current migration directory and start a new migration history with prisma migrate dev."
 
-The app must generate two report versions:
-1. Redacted Version: hides sensitive employee, medical, injury, privacy-case, and company-confidential information.
-2. Unredacted Version: includes full data and is available only to authorized customer-side users.
+What I need you to do:
 
-After completing a filing, the filer must be able to download either the redacted or unredacted version, based on their permissions.
+1. Update `prisma/schema.prisma` so the datasource uses PostgreSQL:
 
-The filer can invite other users by email and assign access levels:
-- Owner/Filer: edit, submit, view sensitive data, download both versions.
-- Editor: edit and continue the filing.
-- Sensitive Data Reviewer: view sensitive data and download unredacted version.
-- Normal Reviewer: view redacted version only.
-- Download-Only Reviewer: download only permitted version.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-All access to sensitive data, unredacted views, downloads, permission changes, and backend processing events must be logged for audit/compliance.
+2. Update the `.env` file so `DATABASE_URL` uses a PostgreSQL connection string.
 
-Rewrite this as a clear product/security requirement with workflow, roles, permissions, privacy controls, and acceptance criteria.
+Use a placeholder like:
+
+DATABASE_URL="postgresql://DB_USER:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME?sslmode=require"
+
+3. Remove or reset the old SQLite migration history.
+
+Delete the old folder:
+
+prisma/migrations
+
+4. Create a new PostgreSQL migration history.
+
+Run:
+
+npx prisma migrate dev --name init
+
+5. Regenerate Prisma Client.
+
+Run:
+
+npx prisma generate
+
+6. Check the codebase for any SQLite-specific settings, files, or references and replace them with PostgreSQL-compatible settings.
+
+7. Make sure the app connects through the backend only and does not expose database credentials in the frontend.
+
+8. Explain each change briefly and list any commands I need to run.
+
+Important:
+I am still in development, so it is okay to reset the migration history. Do not preserve old SQLite migrations.

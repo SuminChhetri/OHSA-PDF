@@ -58,7 +58,7 @@ Plus:
 | Frontend | Next.js 14 (App Router), React 18, Tailwind CSS |
 | API | tRPC v10 (type-safe RPC) |
 | ORM | Prisma |
-| Database | SQLite (development) / PostgreSQL (production) |
+| Database | PostgreSQL (via Prisma) |
 | Auth | NextAuth v4 — Credentials provider with JWT |
 | PDF | @react-pdf/renderer (server-side, no headless browser) |
 | Tests | Vitest (135 unit tests on regulatory logic) |

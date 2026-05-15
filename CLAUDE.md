@@ -62,7 +62,7 @@ OHSA/
 ## Environment Variables
 
 ```
-DATABASE_URL        SQLite: file:./dev.db  |  PostgreSQL: postgresql://...
+DATABASE_URL        postgresql://USER:PASS@HOST:5432/DB?sslmode=require
 NEXTAUTH_SECRET     random 32-char string
 NEXTAUTH_URL        http://localhost:3000
 ```

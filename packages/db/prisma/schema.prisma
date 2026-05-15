@@ -1,15 +1,13 @@
 // OSHA Recordkeeping — Prisma Schema
 // Data model implementing 29 CFR Part 1904 recordkeeping requirements.
-//
-// SQLite is the default datasource for zero-config self-hosting.
-// Swap DATABASE_URL to a postgres:// connection string for production.
+// Database: PostgreSQL — set DATABASE_URL in .env before running migrations.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
