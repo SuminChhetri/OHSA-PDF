@@ -1,10 +1,38 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { router, adminProcedure, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
+import { router, adminProcedure, protectedProcedure, publicProcedure } from "../trpc";
 
 const VALID_ROLES = ["ADMIN", "RECORDKEEPER", "REVIEWER", "EXECUTIVE"] as const;
 
 export const usersRouter = router({
+  /** Public registration — only allowed when no users exist (first admin setup). */
+  register: publicProcedure
+    .input(
+      z.object({
+        name: z.string().min(2, "Name must be at least 2 characters"),
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userCount = await ctx.prisma.user.count();
+      if (userCount > 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Registration is closed. Contact your administrator to be invited.",
+        });
+      }
+      const existing = await ctx.prisma.user.findUnique({ where: { email: input.email } });
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "An account with this email already exists." });
+      }
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      await ctx.prisma.user.create({
+        data: { name: input.name, email: input.email, passwordHash, role: "ADMIN" },
+      });
+    }),
+
   /** List all users. Admin only. */
   list: adminProcedure.query(({ ctx }) => {
     return ctx.prisma.user.findMany({

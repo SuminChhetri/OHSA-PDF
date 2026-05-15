@@ -3,21 +3,19 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/server/auth";
 import { SidebarNav } from "@/components/SidebarNav";
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  if (!session) {
-    redirect("/login");
-  }
+  if (!session) redirect("/login");
 
   return (
-    <div className="flex min-h-screen">
-      <SidebarNav role={session.user.role} />
-      <div className="flex-1 lg:ml-60">
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+    <div className="flex min-h-screen bg-slate-50">
+      <SidebarNav
+        role={session.user.role}
+        name={session.user.name}
+        email={session.user.email}
+      />
+      <div className="flex-1 lg:pl-64 min-w-0">
+        <main className="p-5 sm:p-7 lg:p-8">{children}</main>
       </div>
     </div>
   );
