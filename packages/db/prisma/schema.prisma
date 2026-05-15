@@ -1,0 +1,246 @@
+// OSHA Recordkeeping — Prisma Schema
+// Data model implementing 29 CFR Part 1904 recordkeeping requirements.
+//
+// SQLite is the default datasource for zero-config self-hosting.
+// Swap DATABASE_URL to a postgres:// connection string for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────────────────
+// Role values (stored as String — SQLite does not support enums):
+//   ADMIN        Full access; manage users and settings
+//   RECORDKEEPER Create and edit cases (301 entries)
+//   REVIEWER     Read-only access to all data
+//   EXECUTIVE    May certify the 300A annual summary per 1904.32(b)(3)
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         String   @default("RECORDKEEPER")
+  passwordHash String
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  certifications CertificationRecord[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+// ─── Establishment ────────────────────────────────────────────────────────────
+// One record per physical location. 1904.30 requires a separate log for each
+// establishment expected to be in operation for one year or more.
+
+model Establishment {
+  id       String @id @default(cuid())
+  name     String
+  street   String
+  city     String
+  state    String // Two-letter abbreviation
+  zip      String
+  // NAICS code — used for exemption (1904.2) and ITA eligibility (1904.41) checks
+  naicsCode String
+  // SIC code — optional, may be required by some state plans
+  sicCode   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reportingYears ReportingYear[]
+
+  @@map("establishments")
+}
+
+// ─── Reporting Year ───────────────────────────────────────────────────────────
+// One record per establishment per calendar year. Anchors all 300/300A/301 data.
+// The 5-year retention requirement (1904.33) means rows for years [now-5, now]
+// should never be deleted.
+
+model ReportingYear {
+  id              String @id @default(cuid())
+  establishmentId String
+  year            Int    // Calendar year, e.g. 2024
+
+  // 300A fields — required for annual summary and ITA submission
+  // avgEmployees: average number of employees during the year (for TRIR/DART)
+  avgEmployees     Int?
+  // totalHoursWorked: actual hours worked by all employees (for TRIR/DART)
+  totalHoursWorked Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  establishment  Establishment         @relation(fields: [establishmentId], references: [id])
+  cases          Case[]
+  certifications CertificationRecord[]
+
+  @@unique([establishmentId, year])
+  @@map("reporting_years")
+}
+
+// ─── Case (OSHA Form 301) ─────────────────────────────────────────────────────
+// One record per recordable work-related injury or illness. Contains all fields
+// from the official OSHA Form 301 plus the computed 300 Log fields.
+//
+// Privacy rule: employeeName and other PII are always stored here (needed for
+// government access per 1904.40 and the confidential roster per 1904.29(b)(6)).
+// The 300 Log view and PDF generator substitute "privacy case" at render time
+// when isPrivacyCase is true. Access to employeeName on a privacy case must be
+// logged in the audit trail.
+
+model Case {
+  id              String @id @default(cuid())
+  // Sequential case number within the establishment-year, e.g. "2024-001"
+  caseNumber      String
+  reportingYearId String
+
+  // ── 301 — Employee information ──────────────────────────────────────────
+  employeeName      String
+  employeeJobTitle  String
+  employeeDOB       DateTime?
+  employeeHireDate  DateTime?
+  employeeStreet    String?
+  employeeCity      String?
+  employeeState     String?
+  employeeZip       String?
+
+  // ── 301 — Incident information ───────────────────────────────────────────
+  dateOfInjury          DateTime
+  timeOfInjury          String?   // "HH:MM" or "Unknown"
+  whereEventOccurred    String    // 301 field 7
+  whatEmployeeWasDoing  String    // 301 field 8
+  whatHappened          String    // 301 field 9
+  bodyPartAffected      String    // 301 field 10
+  objectOrSubstance     String    // 301 field 11
+
+  // ── 301 — Medical information ────────────────────────────────────────────
+  treatedInEmergencyRoom Boolean @default(false)
+  hospitalizedOvernight  Boolean @default(false)
+  physicianName          String?
+  facilityName           String?
+  facilityStreet         String?
+  facilityCity           String?
+  facilityState          String?
+  facilityZip            String?
+
+  // ── 300 Log — Privacy (1904.29(b)(6)–(7)) ───────────────────────────────
+  isPrivacyCase Boolean  @default(false)
+  // Reason for privacy designation — see PrivacyReason enum below
+  // Stored as String (SQLite does not support enums natively)
+  privacyReason String?
+
+  // ── 300 Log — Outcome columns G–J (mutually exclusive) ──────────────────
+  // Most-serious-outcome rule per 1904.7(a):
+  //   DEATH > DAYS_AWAY > RESTRICTED_TRANSFER > OTHER_RECORDABLE
+  // Stored as String — validated by application layer against CaseOutcome enum
+  outcome String
+
+  // ── 300 Log — Day counts K–L (calendar days, 180-day cap) ───────────────
+  // Per 1904.7(b)(3): count starts day after injury, all calendar days,
+  // capped at 180, days away and restricted are mutually exclusive per day.
+  daysAway       Int @default(0) // Column K
+  daysRestricted Int @default(0) // Column L
+
+  // ── 300 Log — Case type M1–M6 (injury vs. illness, mutually exclusive) ───
+  // Stored as String — validated against CaseType enum
+  caseType String
+
+  // ── Recordability ────────────────────────────────────────────────────────
+  isRecordable    Boolean @default(true)
+  // Serialized wizard decision path for audit trail
+  wizardAnswers   String? // JSON blob
+
+  // ── 1904.39 Severe injury tracking ─────────────────────────────────────
+  // Stored as String — validated against SeverityLevel enum
+  severityLevel      String?
+  severeReportedAt   DateTime?
+  severeReportMethod String?   // "PHONE" | "ONLINE" | "IN_PERSON"
+
+  // ── Audit fields ─────────────────────────────────────────────────────────
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  updatedById String
+
+  reportingYear ReportingYear @relation(fields: [reportingYearId], references: [id])
+  auditLogs     AuditLog[]
+
+  @@unique([reportingYearId, caseNumber])
+  @@map("cases")
+}
+
+// ─── Certification Record ─────────────────────────────────────────────────────
+// Documents the annual summary certification required by 1904.32(b)(3).
+// Must be signed by a company executive (owner, officer, or highest-ranking official).
+
+model CertificationRecord {
+  id              String   @id @default(cuid())
+  reportingYearId String
+  certifiedById   String
+
+  certifiedAt  DateTime @default(now())
+  signerName   String   // Name as it appears on the certification
+  signerTitle  String   // Title of the certifying executive
+
+  reportingYear ReportingYear @relation(fields: [reportingYearId], references: [id])
+  certifiedBy   User          @relation(fields: [certifiedById], references: [id])
+
+  @@map("certification_records")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+// Append-only record of every create/update/delete on a case, plus privacy
+// case access and 300A certifications.
+//
+// 1904.33 requires that changes to the 300 Log be preserved with the original
+// entry. The audit log is the mechanism for that — it is never deleted.
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  // Stored as String — validated against AuditAction enum
+  action     String
+  entityType String   // "Case" | "ReportingYear" | "Establishment" | ...
+  entityId   String
+
+  // Serialized JSON snapshots of the record before and after the change
+  before     String?  // JSON
+  after      String?  // JSON
+  reason     String?  // Reason for the change (required for updates to recorded cases)
+  ipAddress  String?
+
+  timestamp  DateTime @default(now())
+
+  caseId String?
+  case   Case?   @relation(fields: [caseId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─── NAICS Code Lookup ────────────────────────────────────────────────────────
+// Seeded from:
+//   isAppendixASubpartB = Appendix A to Subpart B (low-hazard exempt industries, 1904.2)
+//   isAppendixBSubpartE = Appendix B to Subpart E (100+ employee 300/301 submission, 1904.41)
+//
+// Used by the exemption checker and ITA eligibility checker at runtime.
+// The application-layer NAICS lookup in regulatory-logic/naics-data.ts is the
+// authoritative source; this table enables fast SQL-side filtering.
+
+model NaicsCode {
+  code             String  @id // 4-digit NAICS code (stored as string for prefix matching)
+  title            String
+  isAppendixASubpartB Boolean @default(false)
+  isAppendixBSubpartE Boolean @default(false)
+
+  @@map("naics_codes")
+}

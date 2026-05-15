@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: osha
+      POSTGRES_PASSWORD: osha_secret
+      POSTGRES_DB: osha_recordkeeping
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osha -d osha_recordkeeping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      target: deps
+    working_dir: /app
+    command: >
+      sh -c "
+        npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma &&
+        npx ts-node --esm packages/db/prisma/seed.ts
+      "
+    environment:
+      DATABASE_URL: postgresql://osha:osha_secret@db:5432/osha_recordkeeping
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://osha:osha_secret@db:5432/osha_recordkeeping
+      NEXTAUTH_SECRET: change_me_to_a_random_32_character_string
+      NEXTAUTH_URL: http://localhost:3000
+      NODE_ENV: production
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
