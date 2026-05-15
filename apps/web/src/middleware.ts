@@ -22,7 +22,8 @@ export default withAuth(
           pathname.startsWith("/login") ||
           pathname.startsWith("/invite") ||
           pathname.startsWith("/api/auth") ||
-          pathname.startsWith("/api/health")
+          pathname.startsWith("/api/health") ||
+          pathname.startsWith("/api/trpc")
         ) {
           return true;
         }

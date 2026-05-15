@@ -247,7 +247,7 @@ export default function LoginPage() {
                     </svg>
                     Creating account…
                   </span>
-                ) : "Create administrator account"}
+                ) : "Create account"}
               </button>
             </form>
           )}
