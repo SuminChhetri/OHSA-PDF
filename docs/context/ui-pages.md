@@ -17,3 +17,4 @@ Auto-generated from `apps/web/src/app/`. Do not edit manually.
 | `/forms/300a/[yearId]` | `apps/web/src/app/(app)/forms/300a/[yearId]/page.tsx` | `forms.get300A.useQuery`, `reportingYears.get.useQuery`, `itaCheck.getEligibility.useQuery`, `reportingYears.certify300A.useMutation` | exec-only, printable, pdf-download |
 | `/invite/[token]` | `apps/web/src/app/invite/[token]/page.tsx` | `invitations.accept.useMutation` |  |
 | `/login` | `apps/web/src/app/login/page.tsx` | — |  |
+| `/` | `apps/web/src/app/page.tsx` | — |  |
