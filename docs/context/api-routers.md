@@ -88,7 +88,7 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 
 | Procedure | Tier | Kind | Description |
 |-----------|------|------|-------------|
-| `register` | `public` | query | Public registration — only allowed when no users exist (first admin setup). |
+| `register` | `public` | query | Public registration — creates a standard REVIEWER account. Admin role is assigned by the software admin team only. |
 | `list` | `admin` | query | List all users. Admin only. |
 | `me` | `protected` | query | Get the currently authenticated user. |
 | `create` | `admin` | query | Create a new user. Admin only. |

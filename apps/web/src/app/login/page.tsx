@@ -25,8 +25,10 @@ export default function LoginPage() {
 
   const register = trpc.users.register.useMutation({
     onSuccess: () => {
-      setRegSuccess("Account created! Signing you in…");
-      signIn("credentials", { email: regEmail, password: regPassword, callbackUrl: "/dashboard", redirect: true });
+      setRegSuccess("Account created! You can now sign in.");
+      setTab("signin");
+      setEmail(regEmail);
+      setRegName(""); setRegEmail(""); setRegPassword(""); setRegConfirm("");
     },
     onError: (err) => setRegError(err.message),
   });
@@ -107,7 +109,7 @@ export default function LoginPage() {
             <p className="mt-1 text-sm text-slate-500">
               {tab === "signin"
                 ? "Sign in to access your recordkeeping dashboard."
-                : "Set up the first administrator account."}
+                : "Create an account to get started."}
             </p>
           </div>
 
@@ -197,8 +199,8 @@ export default function LoginPage() {
                   {regSuccess}
                 </div>
               )}
-              <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                <strong>First-time setup only.</strong> Create an administrator account to get started. After setup, new users must be invited by an admin.
+              <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800">
+                Your account will have <strong>Reviewer</strong> access by default. To get elevated permissions, contact your organization&apos;s admin.
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Full name</label>

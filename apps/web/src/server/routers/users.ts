@@ -6,7 +6,7 @@ import { router, adminProcedure, protectedProcedure, publicProcedure } from "../
 const VALID_ROLES = ["ADMIN", "RECORDKEEPER", "REVIEWER", "EXECUTIVE"] as const;
 
 export const usersRouter = router({
-  /** Public registration — only allowed when no users exist (first admin setup). */
+  /** Public registration — creates a standard REVIEWER account. Admin role is assigned by the software admin team only. */
   register: publicProcedure
     .input(
       z.object({
@@ -16,20 +16,13 @@ export const usersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userCount = await ctx.prisma.user.count();
-      if (userCount > 0) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Registration is closed. Contact your administrator to be invited.",
-        });
-      }
       const existing = await ctx.prisma.user.findUnique({ where: { email: input.email } });
       if (existing) {
         throw new TRPCError({ code: "CONFLICT", message: "An account with this email already exists." });
       }
       const passwordHash = await bcrypt.hash(input.password, 12);
       await ctx.prisma.user.create({
-        data: { name: input.name, email: input.email, passwordHash, role: "ADMIN" },
+        data: { name: input.name, email: input.email, passwordHash, role: "REVIEWER" },
       });
     }),
 
