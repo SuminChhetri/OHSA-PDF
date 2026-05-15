@@ -28,9 +28,10 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 
 | Procedure | Tier | Kind | Description |
 |-----------|------|------|-------------|
+| `naicsSearch` | `protected` | query | Search NAICS codes by code prefix or title keyword. |
 | `list` | `protected` | query | List all establishments accessible to the current user. |
 | `get` | `protected` | query | Get a single establishment with its reporting years. |
-| `create` | `recordkeeper` | mutation | Create a new establishment. |
+| `create` | `protected` | mutation | Create a new establishment. Any authenticated user may create one. |
 | `update` | `recordkeeper` | mutation | Update an establishment's details. |
 | `complianceStatus` | `protected` | query | Returns the recordkeeping exemption status and ITA eligibility for an establishment in a given reporting year. / |
 

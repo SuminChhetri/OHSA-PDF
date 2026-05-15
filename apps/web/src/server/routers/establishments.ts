@@ -13,6 +13,24 @@ const EstablishmentInput = z.object({
 });
 
 export const establishmentsRouter = router({
+  /** Search NAICS codes by code prefix or title keyword. */
+  naicsSearch: protectedProcedure
+    .input(z.object({ q: z.string() }))
+    .query(({ ctx, input }) => {
+      const q = input.q.trim();
+      if (q.length < 2) return [];
+      return ctx.prisma.naicsCode.findMany({
+        where: {
+          OR: [
+            { code: { startsWith: q } },
+            { title: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        orderBy: { code: "asc" },
+        take: 12,
+      });
+    }),
+
   /** List all establishments accessible to the current user. */
   list: protectedProcedure.query(({ ctx }) => {
     return ctx.prisma.establishment.findMany({
@@ -38,8 +56,8 @@ export const establishmentsRouter = router({
       });
     }),
 
-  /** Create a new establishment. */
-  create: recordkeeperProcedure
+  /** Create a new establishment. Any authenticated user may create one. */
+  create: protectedProcedure
     .input(EstablishmentInput)
     .mutation(({ ctx, input }) => {
       return ctx.prisma.establishment.create({ data: input });
