@@ -293,7 +293,17 @@ export const casesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const before = await ctx.prisma.case.findUniqueOrThrow({ where: { id: input.id } });
+      const before = await ctx.prisma.case.findUniqueOrThrow({
+        where: { id: input.id },
+        include: { reportingYear: { select: { status: true } } },
+      });
+
+      if (before.reportingYear.status === "FINALIZED" || before.reportingYear.status === "ARCHIVED") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Cannot delete a case in a ${before.reportingYear.status.toLowerCase()} form. Ask an admin to reopen it first.`,
+        });
+      }
 
       await ctx.prisma.auditLog.create({
         data: {
@@ -302,7 +312,7 @@ export const casesRouter = router({
           entityType: "Case",
           entityId: input.id,
           caseId: input.id,
-          before: JSON.stringify(before),
+          before: JSON.stringify({ ...before, reportingYear: undefined }),
           reason: input.reason,
         },
       });

@@ -7,7 +7,7 @@
  * Page indices (0-based): Form 300 = 6, Form 300A = 7, Form 301 = 9.
  */
 
-import { PDFDocument, PDFName, PDFDict, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 const OSHA_PACKAGE_URL =
   "https://www.osha.gov/sites/default/files/OSHA-RK-Forms-Package.pdf";
@@ -198,7 +198,7 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
   setText(form, "Hearing Loss Summary", data.totals.totalHearingLoss);
   setText(form, "All other Summary", data.totals.totalAllOtherIllnesses);
 
-  if (data.certification && !redact) {
+  if (data.certification) {
     setText(form, "Summary of Injury/Illness Date",
       new Date(data.certification.certifiedAt).toLocaleDateString("en-US"));
   }

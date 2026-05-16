@@ -80,8 +80,8 @@ export default function Form300APage({ params }: Form300APageProps) {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    const emp = parseInt(avgEmployees);
-    const hrs = parseInt(totalHoursWorked);
+    const emp = parseInt(avgEmployees, 10);
+    const hrs = parseInt(totalHoursWorked, 10);
     updateStatsMutation.mutate({
       id: yearId,
       avgEmployees: isNaN(emp) ? 0 : emp,
