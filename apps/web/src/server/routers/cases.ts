@@ -22,7 +22,6 @@ import {
   SeverityLevel,
 } from "@osha/regulatory-logic";
 import { encryptCaseFields, decryptCaseFields } from "../../lib/crypto";
-import { canViewSensitiveData, redactCase } from "../../lib/redact";
 
 // Zod enum helpers derived from regulatory-logic enums
 const zCaseOutcome = z.enum([
@@ -124,14 +123,11 @@ export const casesRouter = router({
     .input(z.object({ reportingYearId: z.string() }))
     .query(async ({ ctx, input }) => {
       const cases = await ctx.prisma.case.findMany({
-        where: { reportingYearId: input.reportingYearId },
+        where: { reportingYearId: input.reportingYearId, isRecordable: true },
         orderBy: { caseNumber: "asc" },
       });
       const role = ctx.session.user.role;
-      return cases.map((c) => {
-        const decrypted = decryptCaseFields(applyPrivacyMask(c, role));
-        return canViewSensitiveData(role) ? decrypted : redactCase(decrypted);
-      });
+      return cases.map((c) => decryptCaseFields(applyPrivacyMask(c, role)));
     }),
 
   /** Get a single case (Form 301 view). Logs VIEW_PRIVACY for admin access to privacy cases. */
@@ -140,22 +136,7 @@ export const casesRouter = router({
     .query(async ({ ctx, input }) => {
       const c = await ctx.prisma.case.findUniqueOrThrow({ where: { id: input.id } });
       const role = ctx.session.user.role;
-
-      if (c.isPrivacyCase && role === "ADMIN") {
-        await ctx.prisma.auditLog.create({
-          data: {
-            userId: ctx.session.user.id,
-            action: "VIEW_PRIVACY",
-            entityType: "Case",
-            entityId: c.id,
-            caseId: c.id,
-            reason: "Admin viewed privacy case PII",
-          },
-        });
-      }
-
-      const decrypted = decryptCaseFields(applyPrivacyMask(c, role));
-      return canViewSensitiveData(role) ? decrypted : redactCase(decrypted);
+      return decryptCaseFields(applyPrivacyMask(c, role));
     }),
 
   /**

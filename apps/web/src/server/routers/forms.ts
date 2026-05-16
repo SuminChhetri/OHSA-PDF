@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
-import { EXCLUDED_FIELDS_300, EXCLUDED_FIELDS_301 } from "@osha/regulatory-logic";
+import { decryptCaseFields } from "../../lib/crypto";
 
 export const formsRouter = router({
   /**
@@ -48,15 +48,18 @@ export const formsRouter = router({
         },
       });
 
-      const logRows = cases.map((c) => ({
-        ...c,
-        // 300 Log always shows "privacy case" — never the real name. 1904.29(b)(6).
-        employeeName: c.isPrivacyCase ? "privacy case" : c.employeeName,
-        // Description may be sanitized for privacy cases per 1904.29(b)(9).
-        whatHappened: c.isPrivacyCase
-          ? "Description withheld — privacy case per 1904.29(b)(9)"
-          : c.whatHappened,
-      }));
+      const logRows = cases.map((c) => {
+        const d = decryptCaseFields(c);
+        return {
+          ...d,
+          // 300 Log always shows "privacy case" — never the real name. 1904.29(b)(6).
+          employeeName: d.isPrivacyCase ? "privacy case" : d.employeeName,
+          // Description may be sanitized for privacy cases per 1904.29(b)(9).
+          whatHappened: d.isPrivacyCase
+            ? "Description withheld — privacy case per 1904.29(b)(9)"
+            : d.whatHappened,
+        };
+      });
 
       return {
         establishment: ry.establishment,
@@ -140,75 +143,4 @@ export const formsRouter = router({
       };
     }),
 
-  /**
-   * Get OSHA Form 301 (Injury and Illness Incident Report) data for one case.
-   *
-   * Privacy: full PII is included here because the 301 is the confidential record.
-   * Government representatives may request access per 1904.40.
-   * Access is logged in the audit trail.
-   */
-  get301: protectedProcedure
-    .input(z.object({ caseId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const c = await ctx.prisma.case.findUniqueOrThrow({ where: { id: input.caseId } });
-
-      // Log access to any 301 (contains PII)
-      await ctx.prisma.auditLog.create({
-        data: {
-          userId: ctx.session.user.id,
-          action: "VIEW_PRIVACY",
-          entityType: "Form301",
-          entityId: c.id,
-          caseId: c.id,
-          reason: "Form 301 viewed",
-        },
-      });
-
-      return { case: c, cfr: "29 CFR 1904.29(b)" };
-    }),
-
-  /**
-   * Build a CSV payload for ITA electronic submission.
-   *
-   * Applies field exclusions required by 1904.41(c):
-   *   - Form 300: excludes employee name (column B)
-   *   - Form 301: excludes employee name, home address, physician name, facility info
-   */
-  buildITACsv: protectedProcedure
-    .input(
-      z.object({
-        reportingYearId: z.string(),
-        formType: z.enum(["300A", "300", "301"]),
-      })
-    )
-    .query(async ({ ctx, input }) => {
-      const ry = await ctx.prisma.reportingYear.findUniqueOrThrow({
-        where: { id: input.reportingYearId },
-        include: { establishment: true },
-      });
-
-      await ctx.prisma.auditLog.create({
-        data: {
-          userId: ctx.session.user.id,
-          action: "EXPORT",
-          entityType: "ITACsv",
-          entityId: input.reportingYearId,
-          reason: `ITA CSV export requested for Form ${input.formType}`,
-        },
-      });
-
-      if (input.formType === "300A") {
-        return { formType: "300A", excludedFields: [], ry };
-      }
-
-      return {
-        formType: input.formType,
-        excludedFields:
-          input.formType === "300"
-            ? [...EXCLUDED_FIELDS_300]
-            : [...EXCLUDED_FIELDS_301],
-        cfr: "29 CFR 1904.41(c)",
-        ry,
-      };
-    }),
 });

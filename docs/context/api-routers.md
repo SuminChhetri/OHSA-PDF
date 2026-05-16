@@ -40,9 +40,6 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 | Procedure | Tier | Kind | Description |
 |-----------|------|------|-------------|
 | `csvITA300A` | `protected` | query | Export 300A data as CSV in the OSHA ITA bulk upload format. Field exclusions per 1904.41(c) are applied automatically. / |
-| `csvITA300And301` | `protected` | query | Export Forms 300 and 301 case data as CSV for ITA bulk submission. Applies field exclusions per 1904.41(c): - Form 300: employee name excluded - Form 301: employee name, home address, physician name, facility info excluded / |
-| `jsonBackup` | `admin` | query | JSON backup — export the complete establishment-year snapshot. Importable into another instance for local backup/restore. / |
-| `jsonRestore` | `admin` | query | JSON restore — import a backup snapshot. Creates a new establishment and reporting year from the backup payload. Admin only. / |
 
 ## `forms` (`apps/web/src/server/routers/forms.ts`)
 
@@ -50,20 +47,12 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 |-----------|------|------|-------------|
 | `get300Log` | `protected` | query | Assemble OSHA Form 300 (Log of Work-Related Injuries and Illnesses) data for a reporting year. Privacy: employee names are replaced with "privacy case" for all privacy cases regardless of user role — the 300 Log is the public-facing form. / |
 | `get300A` | `protected` | query | Assemble OSHA Form 300A (Annual Summary) data. Totals are derived automatically from the 300 Log. Must be certified by a company executive per 1904.32(b)(3). Must be posted February 1 – April 30. 1904.32(b)(6). / |
-| `get301` | `protected` | query | Get OSHA Form 301 (Injury and Illness Incident Report) data for one case. Privacy: full PII is included here because the 301 is the confidential record. Government representatives may request access per 1904.40. Access is logged in the audit trail. / |
-| `buildITACsv` | `protected` | query | Build a CSV payload for ITA electronic submission. Applies field exclusions required by 1904.41(c): - Form 300: excludes employee name (column B) - Form 301: excludes employee name, home address, physician name, facility info / |
 
 ## `invitations` (`apps/web/src/server/routers/invitations.ts`)
 
 | Procedure | Tier | Kind | Description |
 |-----------|------|------|-------------|
 | `accept` | `protected` | mutation | Accept an invitation by token. Creates user if needed, adds EstablishmentMember. |
-
-## `itaCheck` (`apps/web/src/server/routers/itaCheck.ts`)
-
-| Procedure | Tier | Kind | Description |
-|-----------|------|------|-------------|
-| `getEligibility` | `protected` | query | Compute ITA electronic submission requirements for an establishment in a given reporting year. Returns: - Which forms must be submitted (300A / 300+301 / none) - The March 2 deadline - Whether recordkeeping exemptions apply (separate from ITA) - Plain-language summary for the UI / |
 
 ## `metrics` (`apps/web/src/server/routers/metrics.ts`)
 

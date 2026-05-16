@@ -44,8 +44,9 @@ export const publicProcedure = t.procedure;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const OWNER_ROLES = ["ADMIN", "OWNER"];
-const EDITOR_ROLES = ["ADMIN", "OWNER", "RECORDKEEPER", "EDITOR"];
-const EXECUTIVE_ROLES = ["ADMIN", "OWNER", "EXECUTIVE"];
+const ALL_ROLES = ["ADMIN", "OWNER", "RECORDKEEPER", "EDITOR", "EXECUTIVE", "SENSITIVE_REVIEWER", "REVIEWER", "DOWNLOAD_REVIEWER"];
+const EDITOR_ROLES = ALL_ROLES;
+const EXECUTIVE_ROLES = ALL_ROLES;
 const SENSITIVE_ROLES = ["ADMIN", "OWNER", "RECORDKEEPER", "EDITOR", "EXECUTIVE", "SENSITIVE_REVIEWER"];
 
 // ── Middleware ────────────────────────────────────────────────────────────────

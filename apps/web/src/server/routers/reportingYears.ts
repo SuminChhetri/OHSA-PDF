@@ -11,7 +11,7 @@ export const reportingYearsRouter = router({
         where: { establishmentId: input.establishmentId },
         orderBy: { year: "desc" },
         include: {
-          _count: { select: { cases: true } },
+          _count: { select: { cases: { where: { isRecordable: true } } } },
           certifications: {
             orderBy: { certifiedAt: "desc" },
             take: 1,
@@ -122,7 +122,7 @@ export const reportingYearsRouter = router({
       const years = await ctx.prisma.reportingYear.findMany({
         where: { establishmentId: input.establishmentId },
         orderBy: { year: "desc" },
-        select: { id: true, year: true, _count: { select: { cases: true } } },
+        select: { id: true, year: true, _count: { select: { cases: { where: { isRecordable: true } } } } },
       });
 
       return years.map((y) => ({

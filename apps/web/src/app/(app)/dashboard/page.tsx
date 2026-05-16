@@ -12,20 +12,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!eid || !ryid) {
     return (
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          Dashboard — {currentYear}
-        </h1>
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 text-center">
-          <p className="text-blue-800 font-medium">
-            Select an establishment and reporting year to view metrics.
-          </p>
-          <p className="mt-1 text-sm text-blue-600">
-            Go to{" "}
-            <a href="/establishments" className="underline font-medium">
-              Establishments
-            </a>{" "}
-            to choose a reporting year.
-          </p>
+        <h1 className="page-title mb-6">Dashboard — {currentYear}</h1>
+        <div className="card">
+          <div className="px-6 py-10 text-center">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+              </svg>
+            </div>
+            <p className="text-slate-700 font-medium">Select an establishment to get started</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Go to{" "}
+              <a href="/establishments" className="text-blue-600 hover:underline font-medium">
+                Establishments
+              </a>{" "}
+              and choose a reporting year to view your metrics.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -51,8 +54,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (dashboardError) {
     return (
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard — {currentYear}</h1>
-        <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <h1 className="page-title mb-6">Dashboard — {currentYear}</h1>
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {dashboardError}
         </div>
       </div>
@@ -64,22 +67,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const fmt = (n: number | null | undefined) =>
     n == null ? "N/A" : n.toFixed(2);
 
-  const monthNames = [
-    "Jan","Feb","Mar","Apr","May","Jun",
-    "Jul","Aug","Sep","Oct","Nov","Dec",
-  ];
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Dashboard — {dashboardData.establishmentName} ({dashboardData.year})
-        </h1>
-        <a
-          href="/establishments"
-          className="text-sm text-blue-600 hover:underline"
-        >
-          Change establishment
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <p className="section-label mb-1">Safety Metrics</p>
+          <h1 className="page-title">
+            {dashboardData.establishmentName}
+            <span className="text-slate-400 font-normal ml-2 text-2xl">— {dashboardData.year}</span>
+          </h1>
+        </div>
+        <a href="/establishments" className="text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors">
+          Change establishment →
         </a>
       </div>
 
@@ -119,44 +120,47 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </div>
 
       {trendData && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Monthly Trend — {dashboardData.year}</h2>
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <div>
+              <p className="section-label mb-0.5">Monthly Breakdown</p>
+              <h2 className="text-base font-semibold text-slate-900">Trend — {dashboardData.year}</h2>
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cases</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">DART</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Days Away</th>
+                  <th>Month</th>
+                  <th className="text-right">Cases</th>
+                  <th className="text-right">DART</th>
+                  <th className="text-right">Days Away</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {trendData.map((row) => {
                   const [, monthNum] = row.month.split("-");
                   const mName = monthNames[parseInt(monthNum, 10) - 1];
                   return (
-                    <tr key={row.month} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-gray-900">{mName}</td>
-                      <td className="px-4 py-2 text-right text-gray-700">{row.total}</td>
-                      <td className="px-4 py-2 text-right text-gray-700">{row.dart}</td>
-                      <td className="px-4 py-2 text-right text-gray-700">{row.daysAway}</td>
+                    <tr key={row.month}>
+                      <td className="font-medium text-slate-800">{mName}</td>
+                      <td className="text-right">{row.total}</td>
+                      <td className="text-right">{row.dart}</td>
+                      <td className="text-right">{row.daysAway}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                <tr>
-                  <td className="px-4 py-2 font-semibold text-gray-900">Total</td>
-                  <td className="px-4 py-2 text-right font-semibold text-gray-900">
+              <tfoot>
+                <tr className="border-t-2 border-slate-200 bg-slate-50/50">
+                  <td className="px-4 py-2.5 font-semibold text-slate-900 text-sm">Total</td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-slate-900 text-sm">
                     {trendData.reduce((s, r) => s + r.total, 0)}
                   </td>
-                  <td className="px-4 py-2 text-right font-semibold text-gray-900">
+                  <td className="px-4 py-2.5 text-right font-semibold text-slate-900 text-sm">
                     {trendData.reduce((s, r) => s + r.dart, 0)}
                   </td>
-                  <td className="px-4 py-2 text-right font-semibold text-gray-900">
+                  <td className="px-4 py-2.5 text-right font-semibold text-slate-900 text-sm">
                     {trendData.reduce((s, r) => s + r.daysAway, 0)}
                   </td>
                 </tr>
@@ -167,35 +171,40 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       )}
 
       {multiYearData && multiYearData.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Multi-Year Comparison</h2>
+        <div className="card">
+          <div className="card-header">
+            <p className="section-label mb-0.5">Historical</p>
+            <h2 className="text-base font-semibold text-slate-900">Multi-Year Comparison</h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Recordable</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">DART Cases</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">TRIR</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">DART Rate</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Employees</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
+                  <th>Year</th>
+                  <th className="text-right">Recordable</th>
+                  <th className="text-right">DART Cases</th>
+                  <th className="text-right">TRIR</th>
+                  <th className="text-right">DART Rate</th>
+                  <th className="text-right">Avg Employees</th>
+                  <th className="text-right">Total Hours</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {multiYearData.map((row) => (
-                  <tr key={row.year} className={`hover:bg-gray-50 ${row.year === dashboardData!.year ? "bg-blue-50" : ""}`}>
-                    <td className="px-4 py-2 font-medium text-gray-900">{row.year}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">{row.totalRecordable}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">{row.dartCases}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">{fmt(row.trir)}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">{fmt(row.dartRate)}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">{row.avgEmployees ?? "—"}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">
-                      {row.totalHoursWorked?.toLocaleString() ?? "—"}
+                  <tr key={row.year}
+                    className={row.year === dashboardData!.year ? "!bg-blue-50/60" : ""}>
+                    <td className="font-semibold text-slate-800">
+                      {row.year}
+                      {row.year === dashboardData!.year && (
+                        <span className="ml-2 text-[10px] font-semibold text-blue-600 bg-blue-100 rounded px-1.5 py-0.5 uppercase tracking-wide">Current</span>
+                      )}
                     </td>
+                    <td className="text-right">{row.totalRecordable}</td>
+                    <td className="text-right">{row.dartCases}</td>
+                    <td className="text-right">{fmt(row.trir)}</td>
+                    <td className="text-right">{fmt(row.dartRate)}</td>
+                    <td className="text-right">{row.avgEmployees ?? "—"}</td>
+                    <td className="text-right">{row.totalHoursWorked?.toLocaleString() ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

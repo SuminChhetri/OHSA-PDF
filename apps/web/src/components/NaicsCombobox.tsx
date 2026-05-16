@@ -16,7 +16,7 @@ export function NaicsCombobox({ value, onChange, required }: Props) {
 
   const { data: results = [], isFetching } = trpc.establishments.naicsSearch.useQuery(
     { q: query },
-    { enabled: query.length >= 2, keepPreviousData: true }
+    { enabled: open, keepPreviousData: true }
   );
 
   // Close dropdown on outside click
@@ -43,7 +43,7 @@ export function NaicsCombobox({ value, onChange, required }: Props) {
     setOpen(false);
   }
 
-  const showDropdown = open && query.length >= 2;
+  const showDropdown = open;
 
   return (
     <div ref={containerRef} className="relative">
@@ -52,7 +52,7 @@ export function NaicsCombobox({ value, onChange, required }: Props) {
           type="text"
           value={query}
           onChange={handleInput}
-          onFocus={() => query.length >= 2 && setOpen(true)}
+          onFocus={() => setOpen(true)}
           required={required}
           minLength={4}
           maxLength={6}

@@ -7,7 +7,6 @@ import { wizardRouter } from "./wizard";
 import { formsRouter } from "./forms";
 import { metricsRouter } from "./metrics";
 import { exportRouter } from "./export";
-import { itaCheckRouter } from "./itaCheck";
 import { auditRouter } from "./audit";
 import { invitationsRouter } from "./invitations";
 
@@ -20,7 +19,6 @@ export const appRouter = router({
   forms: formsRouter,
   metrics: metricsRouter,
   export: exportRouter,
-  itaCheck: itaCheckRouter,
   audit: auditRouter,
   invitations: invitationsRouter,
 });

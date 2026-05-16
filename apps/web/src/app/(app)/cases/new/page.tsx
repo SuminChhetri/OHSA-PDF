@@ -9,6 +9,12 @@ import {
   PrivacyReason,
   SeverityLevel,
 } from "@osha/regulatory-logic";
+import {
+  OUTCOME_OPTIONS,
+  CASE_TYPE_OPTIONS,
+  PRIVACY_REASON_OPTIONS,
+  SEVERITY_OPTIONS,
+} from "@/lib/case-constants";
 
 type WizardAnswer = boolean | number;
 
@@ -32,38 +38,6 @@ const WIZARD_STEP_IDS = [
 type StepId = (typeof WIZARD_STEP_IDS)[number];
 
 const NUMERIC_STEPS = new Set<string>(["DAYS_AWAY"]);
-
-const OUTCOME_OPTIONS = [
-  { value: "DEATH", label: "G — Death" },
-  { value: "DAYS_AWAY", label: "H — Days Away From Work" },
-  { value: "RESTRICTED_TRANSFER", label: "I — Restricted Work or Job Transfer" },
-  { value: "OTHER_RECORDABLE", label: "J — Other Recordable Case" },
-];
-
-const CASE_TYPE_OPTIONS = [
-  { value: "INJURY", label: "M1 — Injury" },
-  { value: "SKIN_DISORDER", label: "M2 — Skin Disorder" },
-  { value: "RESPIRATORY", label: "M3 — Respiratory Condition" },
-  { value: "POISONING", label: "M4 — Poisoning" },
-  { value: "HEARING_LOSS", label: "M5 — Hearing Loss" },
-  { value: "ALL_OTHER_ILLNESS", label: "M6 — All Other Illnesses" },
-];
-
-const PRIVACY_REASON_OPTIONS = [
-  { value: "INTIMATE_BODY_PART", label: "Intimate body part or reproductive system — 1904.29(b)(7)(i)" },
-  { value: "SEXUAL_ASSAULT", label: "Sexual assault — 1904.29(b)(7)(ii)" },
-  { value: "MENTAL_ILLNESS", label: "Mental illness — 1904.29(b)(7)(iii)" },
-  { value: "HIV_HEPATITIS_TB", label: "HIV infection, hepatitis, or tuberculosis — 1904.29(b)(7)(iv)" },
-  { value: "NEEDLESTICK", label: "Needlestick or sharps injury — 1904.29(b)(7)(v)" },
-  { value: "EMPLOYEE_REQUEST", label: "Employee voluntarily requests privacy — 1904.29(b)(7)(vi)" },
-];
-
-const SEVERITY_OPTIONS = [
-  { value: "FATALITY", label: "Fatality (report within 8 hours — 1904.39(a)(1))" },
-  { value: "HOSPITALIZATION", label: "In-patient hospitalization (report within 24 hours — 1904.39(a)(2)(i))" },
-  { value: "AMPUTATION", label: "Amputation (report within 24 hours — 1904.39(a)(2)(ii))" },
-  { value: "EYE_LOSS", label: "Loss of an eye (report within 24 hours — 1904.39(a)(2)(iii))" },
-];
 
 const EMPTY_FORM = {
   employeeName: "",
@@ -278,12 +252,12 @@ export default function NewCasePage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add New Case</h1>
-          <p className="mt-1 text-sm text-gray-500">Step 1 of 2 — Recordability Wizard</p>
+          <h1 className="page-title">Add New Case</h1>
+          <p className="mt-1 text-sm text-slate-500">Step 1 of 2 — Recordability Wizard</p>
         </div>
 
         {wizardResult ? (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
             <div
               className={`rounded-lg p-4 ${
                 wizardResult.isRecordable
@@ -304,7 +278,7 @@ export default function NewCasePage() {
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Decision Path</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">Decision Path</h3>
               <ol className="space-y-2">
                 {WIZARD_STEP_IDS.slice(0, wizardStepIndex + 1).map((sid) => {
                   const ans = wizardAnswers[sid];
@@ -316,11 +290,11 @@ export default function NewCasePage() {
                         ✓
                       </span>
                       <div>
-                        <span className="text-gray-600">{stepDef?.question.slice(0, 80)}…</span>
-                        <span className="ml-2 font-semibold text-gray-900">
+                        <span className="text-slate-600">{stepDef?.question.slice(0, 80)}…</span>
+                        <span className="ml-2 font-semibold text-slate-900">
                           {typeof ans === "number" ? `${ans} day(s)` : ans ? "Yes" : "No"}
                         </span>
-                        <span className="ml-2 text-xs text-gray-400">{stepDef?.cfr}</span>
+                        <span className="ml-2 text-xs text-slate-400">{stepDef?.cfr}</span>
                       </div>
                     </li>
                   );
@@ -345,7 +319,7 @@ export default function NewCasePage() {
                       onClick={() => {
                         setRecordAnyway(true);
                       }}
-                      className="px-4 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2 rounded-md border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       Record Anyway with Notes
                     </button>
@@ -359,7 +333,7 @@ export default function NewCasePage() {
                 ) : (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Reason for recording a non-recordable case
                       </label>
                       <textarea
@@ -382,7 +356,7 @@ export default function NewCasePage() {
                       </button>
                       <button
                         onClick={() => setRecordAnyway(false)}
-                        className="px-4 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        className="px-4 py-2 rounded-md border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50"
                       >
                         Cancel
                       </button>
@@ -393,8 +367,8 @@ export default function NewCasePage() {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
-            <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+            <div className="flex items-center justify-between text-xs text-slate-500">
               <span>
                 Step {wizardStepIndex + 1} of {WIZARD_STEP_IDS.length}
               </span>
@@ -407,7 +381,7 @@ export default function NewCasePage() {
                         ? "bg-blue-500"
                         : i === wizardStepIndex
                         ? "bg-blue-300"
-                        : "bg-gray-200"
+                        : "bg-slate-200"
                     }`}
                   />
                 ))}
@@ -418,11 +392,11 @@ export default function NewCasePage() {
               <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
                 {currentStepDef?.cfr}
               </p>
-              <p className="text-base font-medium text-gray-900">
+              <p className="text-base font-medium text-slate-900">
                 {currentStepDef?.question}
               </p>
               {currentStepDef?.hint && (
-                <p className="mt-2 text-sm text-gray-500 bg-gray-50 rounded-md p-3">
+                <p className="mt-2 text-sm text-slate-500 bg-slate-50 rounded-md p-3">
                   {currentStepDef.hint}
                 </p>
               )}
@@ -431,7 +405,7 @@ export default function NewCasePage() {
             {NUMERIC_STEPS.has(currentStepId) ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Number of days away (0 = none)
                   </label>
                   <input
@@ -460,7 +434,7 @@ export default function NewCasePage() {
                 </button>
                 <button
                   onClick={() => handleWizardAnswer(false)}
-                  className="px-8 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-8 py-2 rounded-md border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
                   No
                 </button>
@@ -473,7 +447,7 @@ export default function NewCasePage() {
                   setWizardStepIndex((i) => i - 1);
                   setWizardResult(null);
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                className="text-sm text-slate-500 hover:text-slate-700"
               >
                 ← Back
               </button>
@@ -487,11 +461,11 @@ export default function NewCasePage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <button onClick={() => setStep("wizard")} className="text-sm text-gray-500 hover:text-gray-700 mb-2">
+        <button onClick={() => setStep("wizard")} className="text-sm text-slate-500 hover:text-slate-700 mb-2">
           ← Back to Wizard
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Add New Case</h1>
-        <p className="mt-1 text-sm text-gray-500">Step 2 of 2 — OSHA Form 301 Entry</p>
+        <h1 className="page-title">Add New Case</h1>
+        <p className="mt-1 text-sm text-slate-500">Step 2 of 2 — OSHA Form 301 Entry</p>
         {wizardResult && (
           <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
             wizardResult.isRecordable ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"
@@ -508,96 +482,96 @@ export default function NewCasePage() {
       )}
 
       <form onSubmit={handleFormSubmit} className="space-y-6">
-        <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <legend className="text-base font-semibold text-gray-900 mb-4">Employee Information</legend>
+        <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <legend className="text-base font-semibold text-slate-900 mb-4">Employee Information</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <input name="employeeName" value={form.employeeName} onChange={handleFormChange} required className="form-input" />
               {formErrors.employeeName && <p className="mt-1 text-xs text-red-600">{formErrors.employeeName}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Job Title <span className="text-red-500">*</span>
               </label>
               <input name="employeeJobTitle" value={form.employeeJobTitle} onChange={handleFormChange} required className="form-input" />
               {formErrors.employeeJobTitle && <p className="mt-1 text-xs text-red-600">{formErrors.employeeJobTitle}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
               <input type="date" name="employeeDOB" value={form.employeeDOB} onChange={handleFormChange} className="form-input" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date Hired</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date Hired</label>
               <input type="date" name="employeeHireDate" value={form.employeeHireDate} onChange={handleFormChange} className="form-input" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Street</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Home Street</label>
               <input name="employeeStreet" value={form.employeeStreet} onChange={handleFormChange} className="form-input" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
               <input name="employeeCity" value={form.employeeCity} onChange={handleFormChange} className="form-input" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
                 <input name="employeeState" value={form.employeeState} onChange={handleFormChange} maxLength={2} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ZIP</label>
                 <input name="employeeZip" value={form.employeeZip} onChange={handleFormChange} className="form-input" />
               </div>
             </div>
           </div>
         </fieldset>
 
-        <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <legend className="text-base font-semibold text-gray-900 mb-4">Incident Information</legend>
+        <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <legend className="text-base font-semibold text-slate-900 mb-4">Incident Information</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Date of Injury/Illness <span className="text-red-500">*</span>
               </label>
               <input type="date" name="dateOfInjury" value={form.dateOfInjury} onChange={handleFormChange} required className="form-input" />
               {formErrors.dateOfInjury && <p className="mt-1 text-xs text-red-600">{formErrors.dateOfInjury}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Time of Incident</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Time of Incident</label>
               <input type="time" name="timeOfInjury" value={form.timeOfInjury} onChange={handleFormChange} className="form-input" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Where did the event occur? <span className="text-red-500">*</span>
               </label>
               <input name="whereEventOccurred" value={form.whereEventOccurred} onChange={handleFormChange} required className="form-input" placeholder="e.g., Shipping dock, Machine shop" />
               {formErrors.whereEventOccurred && <p className="mt-1 text-xs text-red-600">{formErrors.whereEventOccurred}</p>}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 What was the employee doing just before the incident? <span className="text-red-500">*</span>
               </label>
               <textarea rows={2} name="whatEmployeeWasDoing" value={form.whatEmployeeWasDoing} onChange={handleFormChange} required className="form-input" />
               {formErrors.whatEmployeeWasDoing && <p className="mt-1 text-xs text-red-600">{formErrors.whatEmployeeWasDoing}</p>}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Describe the injury or illness <span className="text-red-500">*</span>
               </label>
               <textarea rows={3} name="whatHappened" value={form.whatHappened} onChange={handleFormChange} required className="form-input" />
               {formErrors.whatHappened && <p className="mt-1 text-xs text-red-600">{formErrors.whatHappened}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Body part affected <span className="text-red-500">*</span>
               </label>
               <input name="bodyPartAffected" value={form.bodyPartAffected} onChange={handleFormChange} required className="form-input" />
               {formErrors.bodyPartAffected && <p className="mt-1 text-xs text-red-600">{formErrors.bodyPartAffected}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Object or substance that directly harmed <span className="text-red-500">*</span>
               </label>
               <input name="objectOrSubstance" value={form.objectOrSubstance} onChange={handleFormChange} required className="form-input" />
@@ -606,51 +580,51 @@ export default function NewCasePage() {
           </div>
         </fieldset>
 
-        <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <legend className="text-base font-semibold text-gray-900 mb-4">Medical Treatment</legend>
+        <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <legend className="text-base font-semibold text-slate-900 mb-4">Medical Treatment</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
-              <input type="checkbox" id="er" name="treatedInEmergencyRoom" checked={form.treatedInEmergencyRoom} onChange={handleFormChange} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-              <label htmlFor="er" className="text-sm text-gray-700">Treated in Emergency Room?</label>
+              <input type="checkbox" id="er" name="treatedInEmergencyRoom" checked={form.treatedInEmergencyRoom} onChange={handleFormChange} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+              <label htmlFor="er" className="text-sm text-slate-700">Treated in Emergency Room?</label>
             </div>
             <div className="flex items-center gap-3">
-              <input type="checkbox" id="hosp" name="hospitalizedOvernight" checked={form.hospitalizedOvernight} onChange={handleFormChange} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-              <label htmlFor="hosp" className="text-sm text-gray-700">Hospitalized Overnight?</label>
+              <input type="checkbox" id="hosp" name="hospitalizedOvernight" checked={form.hospitalizedOvernight} onChange={handleFormChange} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+              <label htmlFor="hosp" className="text-sm text-slate-700">Hospitalized Overnight?</label>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Physician/LHCP Name</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Physician/LHCP Name</label>
               <input name="physicianName" value={form.physicianName} onChange={handleFormChange} className="form-input" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Facility Name</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Facility Name</label>
               <input name="facilityName" value={form.facilityName} onChange={handleFormChange} className="form-input" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Facility Street</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Facility Street</label>
               <input name="facilityStreet" value={form.facilityStreet} onChange={handleFormChange} className="form-input" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Facility City</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Facility City</label>
               <input name="facilityCity" value={form.facilityCity} onChange={handleFormChange} className="form-input" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
                 <input name="facilityState" value={form.facilityState} onChange={handleFormChange} maxLength={2} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ZIP</label>
                 <input name="facilityZip" value={form.facilityZip} onChange={handleFormChange} className="form-input" />
               </div>
             </div>
           </div>
         </fieldset>
 
-        <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <legend className="text-base font-semibold text-gray-900 mb-4">Case Classification (300 Log)</legend>
+        <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <legend className="text-base font-semibold text-slate-900 mb-4">Case Classification (300 Log)</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Outcome (Columns G–J) <span className="text-red-500">*</span>
               </label>
               <select name="outcome" value={form.outcome} onChange={handleFormChange} className="form-input">
@@ -660,15 +634,15 @@ export default function NewCasePage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Days Away from Work (Col K)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Days Away from Work (Col K)</label>
               <input type="number" name="daysAway" value={form.daysAway} onChange={handleFormChange} min={0} max={180} className="form-input" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Days Restricted/Transfer (Col L)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Days Restricted/Transfer (Col L)</label>
               <input type="number" name="daysRestricted" value={form.daysRestricted} onChange={handleFormChange} min={0} max={180} className="form-input" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Case Type (Columns M1–M6) <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -680,7 +654,7 @@ export default function NewCasePage() {
                       value={ct.value}
                       checked={form.caseType === ct.value}
                       onChange={handleFormChange}
-                      className="h-4 w-4 border-gray-300 text-blue-600"
+                      className="h-4 w-4 border-slate-300 text-blue-600"
                     />
                     {ct.label}
                   </label>
@@ -690,8 +664,8 @@ export default function NewCasePage() {
           </div>
         </fieldset>
 
-        <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <legend className="text-base font-semibold text-gray-900 mb-4">Privacy — 29 CFR 1904.29(b)(7)</legend>
+        <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <legend className="text-base font-semibold text-slate-900 mb-4">Privacy — 29 CFR 1904.29(b)(7)</legend>
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <input
@@ -700,15 +674,15 @@ export default function NewCasePage() {
                 name="isPrivacyCase"
                 checked={form.isPrivacyCase}
                 onChange={handleFormChange}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
               />
-              <label htmlFor="privacy" className="text-sm font-medium text-gray-700">
+              <label htmlFor="privacy" className="text-sm font-medium text-slate-700">
                 Is this a privacy concern case?
               </label>
             </div>
             {form.isPrivacyCase && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Privacy Reason <span className="text-red-500">*</span>
                 </label>
                 <select name="privacyReason" value={form.privacyReason} onChange={handleFormChange} className="form-input">
@@ -723,10 +697,10 @@ export default function NewCasePage() {
           </div>
         </fieldset>
 
-        <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <legend className="text-base font-semibold text-gray-900 mb-4">Severity — 29 CFR 1904.39</legend>
+        <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <legend className="text-base font-semibold text-slate-900 mb-4">Severity — 29 CFR 1904.39</legend>
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">Did this result in a fatality, hospitalization, amputation, or loss of an eye?</p>
+            <p className="text-sm text-slate-600">Did this result in a fatality, hospitalization, amputation, or loss of an eye?</p>
             <select name="severityLevel" value={form.severityLevel} onChange={handleFormChange} className="form-input">
               <option value="">No — not a severe injury</option>
               {SEVERITY_OPTIONS.map((sv) => (
@@ -752,7 +726,7 @@ export default function NewCasePage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 rounded-md border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Cancel
           </button>

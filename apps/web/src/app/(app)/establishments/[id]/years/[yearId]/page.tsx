@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { LogTable } from "@/components/log/LogTable";
+import { usePdfViewer } from "@/lib/hooks/usePdfViewer";
+import { PdfViewerPanel } from "@/components/PdfViewerPanel";
 
 interface YearLogPageProps {
   params: { id: string; yearId: string };
@@ -12,6 +14,7 @@ interface YearLogPageProps {
 export default function YearLogPage({ params }: YearLogPageProps) {
   const { id, yearId } = params;
   const router = useRouter();
+  const pdfViewer = usePdfViewer();
 
   const { data: cases, isLoading, error } = trpc.cases.list.useQuery({
     reportingYearId: yearId,
@@ -43,30 +46,32 @@ export default function YearLogPage({ params }: YearLogPageProps) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
             <Link href="/establishments" className="hover:text-blue-600">Establishments</Link>
             <span>/</span>
             <Link href={`/establishments/${id}`} className="hover:text-blue-600">
               {ry?.establishment?.name ?? id}
             </Link>
             <span>/</span>
-            <span className="text-gray-700">{ry?.year ?? yearId} Log</span>
+            <span className="text-slate-700">{ry?.year ?? yearId} Log</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            OSHA Form 300 — {ry?.year ?? ""} Log
-          </h1>
+          <h1 className="page-title">OSHA Form 300 — {ry?.year ?? ""} Log</h1>
           {ry?.establishment && (
-            <p className="mt-1 text-sm text-gray-500">{ry.establishment.name}</p>
+            <p className="mt-1 text-sm text-slate-500">{ry.establishment.name}</p>
           )}
         </div>
-        <div className="flex gap-2 self-start sm:self-center">
-          <a
-            href={`/api/pdf/300/${yearId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        <div className="flex gap-2 self-start sm:self-center flex-wrap">
+          <button
+            onClick={() => pdfViewer.fetchPdf(`/api/pdf/300/${yearId}?lock=1`)}
+            className="btn-secondary text-sm"
           >
-            Download Form 300 PDF
+            View Form 300 PDF
+          </button>
+          <a
+            href={`/api/pdf/300/${yearId}?download=1`}
+            className="btn-secondary text-sm"
+          >
+            Download PDF
           </a>
           <Link
             href={`/cases/new?ryid=${yearId}`}
@@ -78,23 +83,31 @@ export default function YearLogPage({ params }: YearLogPageProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">Total Cases</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{totalCases}</p>
+        <div className="bg-white rounded-lg border border-slate-200 p-4 text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Total Cases</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{totalCases}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">Days Away</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{totalDaysAway}</p>
+        <div className="bg-white rounded-lg border border-slate-200 p-4 text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Days Away</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{totalDaysAway}</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">Days Restricted</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{totalDaysRestricted}</p>
+        <div className="bg-white rounded-lg border border-slate-200 p-4 text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Days Restricted</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{totalDaysRestricted}</p>
         </div>
       </div>
 
       <LogTable
         cases={cases ?? []}
         onAddCase={() => router.push(`/cases/new?ryid=${yearId}`)}
+      />
+
+      <PdfViewerPanel
+        title={`Form 300 — ${ry?.year ?? ""} Log`}
+        blobUrl={pdfViewer.blobUrl}
+        loading={pdfViewer.loading}
+        onClose={pdfViewer.close}
+        downloadUrl={`/api/pdf/300/${yearId}?download=1`}
       />
     </div>
   );

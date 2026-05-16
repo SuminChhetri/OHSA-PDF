@@ -18,7 +18,10 @@ export const establishmentsRouter = router({
     .input(z.object({ q: z.string() }))
     .query(({ ctx, input }) => {
       const q = input.q.trim();
-      if (q.length < 2) return [];
+      // Browse mode — return first 20 codes when no query
+      if (q.length === 0) {
+        return ctx.prisma.naicsCode.findMany({ orderBy: { code: "asc" }, take: 20 });
+      }
       return ctx.prisma.naicsCode.findMany({
         where: {
           OR: [
@@ -27,7 +30,7 @@ export const establishmentsRouter = router({
           ],
         },
         orderBy: { code: "asc" },
-        take: 12,
+        take: 15,
       });
     }),
 

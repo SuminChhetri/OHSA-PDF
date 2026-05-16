@@ -1,71 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "next-auth/react";
+import { CaseOutcome, CaseType, PrivacyReason } from "@osha/regulatory-logic";
 import {
-  CaseOutcome,
-  CaseType,
-  PrivacyReason,
-} from "@osha/regulatory-logic";
-
-const OUTCOME_LABELS: Record<string, string> = {
-  DEATH: "G — Death",
-  DAYS_AWAY: "H — Days Away From Work",
-  RESTRICTED_TRANSFER: "I — Restricted Work or Job Transfer",
-  OTHER_RECORDABLE: "J — Other Recordable Case",
-};
-
-const CASE_TYPE_LABELS: Record<string, string> = {
-  INJURY: "M1 — Injury",
-  SKIN_DISORDER: "M2 — Skin Disorder",
-  RESPIRATORY: "M3 — Respiratory Condition",
-  POISONING: "M4 — Poisoning",
-  HEARING_LOSS: "M5 — Hearing Loss",
-  ALL_OTHER_ILLNESS: "M6 — All Other Illnesses",
-};
-
-const PRIVACY_REASON_LABELS: Record<string, string> = {
-  INTIMATE_BODY_PART: "Intimate body part — 1904.29(b)(7)(i)",
-  SEXUAL_ASSAULT: "Sexual assault — 1904.29(b)(7)(ii)",
-  MENTAL_ILLNESS: "Mental illness — 1904.29(b)(7)(iii)",
-  HIV_HEPATITIS_TB: "HIV/Hepatitis/TB — 1904.29(b)(7)(iv)",
-  NEEDLESTICK: "Needlestick/sharps — 1904.29(b)(7)(v)",
-  EMPLOYEE_REQUEST: "Employee request — 1904.29(b)(7)(vi)",
-};
-
-const OUTCOME_OPTIONS = [
-  { value: "DEATH", label: "G — Death" },
-  { value: "DAYS_AWAY", label: "H — Days Away From Work" },
-  { value: "RESTRICTED_TRANSFER", label: "I — Restricted Work or Job Transfer" },
-  { value: "OTHER_RECORDABLE", label: "J — Other Recordable Case" },
-];
-
-const CASE_TYPE_OPTIONS = [
-  { value: "INJURY", label: "M1 — Injury" },
-  { value: "SKIN_DISORDER", label: "M2 — Skin Disorder" },
-  { value: "RESPIRATORY", label: "M3 — Respiratory Condition" },
-  { value: "POISONING", label: "M4 — Poisoning" },
-  { value: "HEARING_LOSS", label: "M5 — Hearing Loss" },
-  { value: "ALL_OTHER_ILLNESS", label: "M6 — All Other Illnesses" },
-];
-
-const PRIVACY_REASON_OPTIONS = [
-  { value: "INTIMATE_BODY_PART", label: "Intimate body part — 1904.29(b)(7)(i)" },
-  { value: "SEXUAL_ASSAULT", label: "Sexual assault — 1904.29(b)(7)(ii)" },
-  { value: "MENTAL_ILLNESS", label: "Mental illness — 1904.29(b)(7)(iii)" },
-  { value: "HIV_HEPATITIS_TB", label: "HIV/Hepatitis/TB — 1904.29(b)(7)(iv)" },
-  { value: "NEEDLESTICK", label: "Needlestick/sharps — 1904.29(b)(7)(v)" },
-  { value: "EMPLOYEE_REQUEST", label: "Employee request — 1904.29(b)(7)(vi)" },
-];
-
-const SEVERITY_OPTIONS = [
-  { value: "FATALITY", label: "Fatality" },
-  { value: "HOSPITALIZATION", label: "In-patient Hospitalization" },
-  { value: "AMPUTATION", label: "Amputation" },
-  { value: "EYE_LOSS", label: "Loss of an Eye" },
-];
+  OUTCOME_LABELS,
+  OUTCOME_OPTIONS,
+  CASE_TYPE_LABELS,
+  CASE_TYPE_OPTIONS,
+  PRIVACY_REASON_LABELS,
+  PRIVACY_REASON_OPTIONS,
+} from "@/lib/case-constants";
+import { usePdfViewer } from "@/lib/hooks/usePdfViewer";
+import { PdfViewerPanel } from "@/components/PdfViewerPanel";
 
 interface CaseDetailPageProps {
   params: { id: string };
@@ -75,8 +24,8 @@ function Field({ label, value }: { label: string; value?: string | boolean | nul
   if (value === null || value === undefined || value === "") return null;
   return (
     <div>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</p>
-      <p className="mt-0.5 text-sm text-gray-900">
+      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
+      <p className="mt-0.5 text-sm text-slate-900">
         {typeof value === "boolean" ? (value ? "Yes" : "No") : value}
       </p>
     </div>
@@ -104,6 +53,17 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   });
 
   const [editMode, setEditMode] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
+  const pdf301 = usePdfViewer();
+
+  useEffect(() => {
+    if (showPdf) {
+      pdf301.fetchPdf(`/api/pdf/301/${id}?lock=1`);
+    } else {
+      pdf301.close();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPdf, id]);
   const [updateReason, setUpdateReason] = useState("");
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -202,7 +162,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="page-title">
             Case #{caseData.caseNumber}
           </h1>
           {caseData.isPrivacyCase && (
@@ -212,21 +172,30 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           )}
         </div>
         {!editMode && (
-          <div className="flex gap-2 self-start">
-            <a
-              href={`/api/pdf/301/${id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          <div className="flex gap-2 self-start flex-wrap">
+            <button
+              onClick={() => setShowPdf((v) => !v)}
+              className="btn-secondary text-sm"
             >
-              Download Form 301 PDF
-            </a>
+              {showPdf ? "Hide Form 301" : "View Form 301 PDF"}
+            </button>
             <button onClick={enterEditMode} className="btn-primary">
               Edit
             </button>
           </div>
         )}
       </div>
+
+      {/* Inline Form 301 viewer */}
+      {showPdf && !editMode && (
+        <PdfViewerPanel
+          title={`Form 301 — Case #${caseData.caseNumber}`}
+          blobUrl={pdf301.blobUrl}
+          loading={pdf301.loading}
+          onClose={() => setShowPdf(false)}
+          downloadUrl={`/api/pdf/301/${id}?download=1`}
+        />
+      )}
 
       {updateMutation.error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -236,63 +205,63 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
 
       {editMode ? (
         <form onSubmit={handleEditSubmit} className="space-y-6">
-          <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <legend className="text-base font-semibold text-gray-900 mb-4">Edit Case</legend>
+          <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <legend className="text-base font-semibold text-slate-900 mb-4">Edit Case</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Employee Name</label>
                 <input name="employeeName" value={editForm.employeeName as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Job Title</label>
                 <input name="employeeJobTitle" value={editForm.employeeJobTitle as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Injury</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date of Injury</label>
                 <input type="date" name="dateOfInjury" value={editForm.dateOfInjury as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
                 <input type="time" name="timeOfInjury" value={editForm.timeOfInjury as string} onChange={handleEditChange} className="form-input" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Where event occurred</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Where event occurred</label>
                 <input name="whereEventOccurred" value={editForm.whereEventOccurred as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">What employee was doing</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">What employee was doing</label>
                 <textarea rows={2} name="whatEmployeeWasDoing" value={editForm.whatEmployeeWasDoing as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">What happened</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">What happened</label>
                 <textarea rows={3} name="whatHappened" value={editForm.whatHappened as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Body part affected</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Body part affected</label>
                 <input name="bodyPartAffected" value={editForm.bodyPartAffected as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Object/substance</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Object/substance</label>
                 <input name="objectOrSubstance" value={editForm.objectOrSubstance as string} onChange={handleEditChange} required className="form-input" />
               </div>
               <div className="flex items-center gap-3">
-                <input type="checkbox" id="edit-er" name="treatedInEmergencyRoom" checked={editForm.treatedInEmergencyRoom as boolean} onChange={handleEditChange} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-                <label htmlFor="edit-er" className="text-sm text-gray-700">Treated in Emergency Room</label>
+                <input type="checkbox" id="edit-er" name="treatedInEmergencyRoom" checked={editForm.treatedInEmergencyRoom as boolean} onChange={handleEditChange} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                <label htmlFor="edit-er" className="text-sm text-slate-700">Treated in Emergency Room</label>
               </div>
               <div className="flex items-center gap-3">
-                <input type="checkbox" id="edit-hosp" name="hospitalizedOvernight" checked={editForm.hospitalizedOvernight as boolean} onChange={handleEditChange} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-                <label htmlFor="edit-hosp" className="text-sm text-gray-700">Hospitalized Overnight</label>
+                <input type="checkbox" id="edit-hosp" name="hospitalizedOvernight" checked={editForm.hospitalizedOvernight as boolean} onChange={handleEditChange} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                <label htmlFor="edit-hosp" className="text-sm text-slate-700">Hospitalized Overnight</label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Physician Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Physician Name</label>
                 <input name="physicianName" value={editForm.physicianName as string} onChange={handleEditChange} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Facility Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Facility Name</label>
                 <input name="facilityName" value={editForm.facilityName as string} onChange={handleEditChange} className="form-input" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Outcome</label>
                 <select name="outcome" value={editForm.outcome as string} onChange={handleEditChange} className="form-input">
                   {OUTCOME_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -300,19 +269,19 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Days Away</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Days Away</label>
                 <input type="number" name="daysAway" value={editForm.daysAway as number} onChange={handleEditChange} min={0} max={180} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Days Restricted</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Days Restricted</label>
                 <input type="number" name="daysRestricted" value={editForm.daysRestricted as number} onChange={handleEditChange} min={0} max={180} className="form-input" />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Case Type</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Case Type</label>
                 <div className="grid grid-cols-2 gap-2">
                   {CASE_TYPE_OPTIONS.map((ct) => (
                     <label key={ct.value} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input type="radio" name="caseType" value={ct.value} checked={editForm.caseType === ct.value} onChange={handleEditChange} className="h-4 w-4 border-gray-300 text-blue-600" />
+                      <input type="radio" name="caseType" value={ct.value} checked={editForm.caseType === ct.value} onChange={handleEditChange} className="h-4 w-4 border-slate-300 text-blue-600" />
                       {ct.label}
                     </label>
                   ))}
@@ -320,8 +289,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <div className="flex items-center gap-3">
-                  <input type="checkbox" id="edit-priv" name="isPrivacyCase" checked={editForm.isPrivacyCase as boolean} onChange={handleEditChange} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-                  <label htmlFor="edit-priv" className="text-sm text-gray-700">Privacy case</label>
+                  <input type="checkbox" id="edit-priv" name="isPrivacyCase" checked={editForm.isPrivacyCase as boolean} onChange={handleEditChange} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                  <label htmlFor="edit-priv" className="text-sm text-slate-700">Privacy case</label>
                 </div>
                 {!!editForm.isPrivacyCase && (
                   <select name="privacyReason" value={editForm.privacyReason as string} onChange={handleEditChange} className="form-input">
@@ -335,8 +304,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
             </div>
           </fieldset>
 
-          <fieldset className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <legend className="text-base font-semibold text-gray-900 mb-4">Reason for Change — Required (29 CFR 1904.33)</legend>
+          <fieldset className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <legend className="text-base font-semibold text-slate-900 mb-4">Reason for Change — Required (29 CFR 1904.33)</legend>
             <textarea
               rows={3}
               value={updateReason}
@@ -349,7 +318,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           </fieldset>
 
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setEditMode(false)} className="px-4 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={() => setEditMode(false)} className="px-4 py-2 rounded-md border btn-secondary">
               Cancel
             </button>
             <button type="submit" disabled={updateMutation.isPending} className="btn-primary">
@@ -359,9 +328,9 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
         </form>
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
             <div>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Employee</h2>
+              <h2 className="text-sm font-semibold section-label mb-3">Employee</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <Field label="Name" value={caseData.employeeName} />
                 <Field label="Job Title" value={caseData.employeeJobTitle} />
@@ -374,8 +343,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Incident</h2>
+            <div className="border-t border-slate-100 pt-4">
+              <h2 className="text-sm font-semibold section-label mb-3">Incident</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <Field label="Date of Injury" value={new Date(caseData.dateOfInjury).toLocaleDateString("en-US")} />
                 <Field label="Time" value={caseData.timeOfInjury ?? null} />
@@ -391,8 +360,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Medical</h2>
+            <div className="border-t border-slate-100 pt-4">
+              <h2 className="text-sm font-semibold section-label mb-3">Medical</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <Field label="Treated in ER" value={caseData.treatedInEmergencyRoom} />
                 <Field label="Hospitalized Overnight" value={caseData.hospitalizedOvernight} />
@@ -405,8 +374,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Classification (300 Log)</h2>
+            <div className="border-t border-slate-100 pt-4">
+              <h2 className="text-sm font-semibold section-label mb-3">Classification (300 Log)</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <Field label="Outcome" value={OUTCOME_LABELS[caseData.outcome] ?? caseData.outcome} />
                 <Field label="Days Away (K)" value={caseData.daysAway > 0 ? String(caseData.daysAway) : "0"} />
@@ -417,8 +386,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
             </div>
 
             {caseData.isPrivacyCase && (
-              <div className="border-t border-gray-100 pt-4">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Privacy</h2>
+              <div className="border-t border-slate-100 pt-4">
+                <h2 className="text-sm font-semibold section-label mb-3">Privacy</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Privacy Case" value="Yes" />
                   <Field label="Privacy Reason" value={caseData.privacyReason ? PRIVACY_REASON_LABELS[caseData.privacyReason] : null} />
@@ -427,8 +396,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
             )}
 
             {caseData.severityLevel && (
-              <div className="border-t border-gray-100 pt-4">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Severity — 1904.39</h2>
+              <div className="border-t border-slate-100 pt-4">
+                <h2 className="text-sm font-semibold section-label mb-3">Severity — 1904.39</h2>
                 <div className="rounded-lg bg-red-50 border border-red-200 p-3">
                   <p className="text-sm font-bold text-red-800">{caseData.severityLevel}</p>
                   {caseData.severeReportedAt && (
@@ -443,25 +412,25 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           </div>
 
           {auditLogs && auditLogs.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-base font-semibold text-gray-900">Audit History</h2>
+            <div className="card overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200">
+                <h2 className="text-base font-semibold text-slate-900">Audit History</h2>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-slate-100">
                 {auditLogs.map((entry) => (
                   <div key={entry.id} className="px-6 py-3">
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <span className="text-xs font-semibold text-gray-700 uppercase">{entry.action}</span>
-                        <span className="mx-2 text-gray-300">|</span>
-                        <span className="text-xs text-gray-500">{entry.user.name ?? entry.user.role}</span>
+                        <span className="text-xs font-semibold text-slate-700 uppercase">{entry.action}</span>
+                        <span className="mx-2 text-slate-300">|</span>
+                        <span className="text-xs text-slate-500">{entry.user.name ?? entry.user.role}</span>
                       </div>
-                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                      <span className="text-xs text-slate-400 whitespace-nowrap">
                         {new Date(entry.timestamp).toLocaleString("en-US")}
                       </span>
                     </div>
                     {entry.reason && (
-                      <p className="mt-1 text-xs text-gray-600">{entry.reason}</p>
+                      <p className="mt-1 text-xs text-slate-600">{entry.reason}</p>
                     )}
                   </div>
                 ))}

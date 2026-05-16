@@ -1,100 +1,95 @@
 /**
- * API route: GET /api/pdf/300/[yearId]
- * Generates a server-side PDF of OSHA Form 300 (Log of Work-Related Injuries and Illnesses).
- * Legal landscape (14in × 8.5in) · 29 CFR 1904.29(b)
+ * GET /api/pdf/300/[yearId]
+ * Fills the official OSHA Form 300 with case data and returns it.
  *
  * Query params:
- *   ?redacted=1   Mask narrative description fields (whatHappened).
- *                 Roles without canDownloadUnredacted always get the redacted version.
+ *   ?download=1  → attachment + locked (force download, non-fillable)
+ *   ?lock=1      → inline + locked (View Only — no download prompt)
+ *   (default)    → inline + fillable
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { renderToBuffer } from "@react-pdf/renderer";
-import React from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth";
 import { appRouter } from "@/server/routers/_app";
 import { createInnerTRPCContext } from "@/server/context";
-import { Form300Pdf, type Form300PdfProps } from "@/lib/pdf/form300";
-import { canDownloadUnredacted } from "@/lib/redact";
+import { fill300 } from "@/lib/pdf/osha-filler";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { yearId: string } }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const ctx = await createInnerTRPCContext(session);
   const caller = appRouter.createCaller(ctx);
 
-  const [cases, ry] = await Promise.all([
-    caller.cases.list({ reportingYearId: params.yearId }),
-    caller.reportingYears.get({ id: params.yearId }),
-  ]);
+  const data = await caller.forms.get300Log({ reportingYearId: params.yearId });
 
-  if (!ry?.establishment) {
+  if (!data?.establishment) {
     return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
   }
 
-  const redactedParam = _req.nextUrl.searchParams.get("redacted");
-  const role = session.user.role;
-  const useRedacted = redactedParam === "1" || !canDownloadUnredacted(role);
-
-  // Log the download event to the audit trail
   await ctx.prisma.auditLog.create({
     data: {
       userId: session.user.id,
-      action: useRedacted ? "DOWNLOAD_REDACTED" : "DOWNLOAD_UNREDACTED",
+      action: "DOWNLOAD_UNREDACTED",
       entityType: "Form300",
       entityId: params.yearId,
-      reason: `Form 300 PDF downloaded (${useRedacted ? "redacted" : "unredacted"})`,
+      reason: "Form 300 PDF viewed/downloaded",
     },
   });
 
-  const { establishment, year } = ry;
+  try {
+    const sp = req.nextUrl.searchParams;
+    const forceDownload = sp.get("download") === "1";
+    const lockOnly = sp.get("lock") === "1";
+    const lock = forceDownload || lockOnly;
 
-  const props: Form300PdfProps = {
-    cases: cases.map((c) => ({
-      id: c.id,
-      caseNumber: c.caseNumber,
-      employeeName: c.employeeName ?? "Privacy Case",
-      employeeJobTitle: c.employeeJobTitle ?? "",
-      dateOfInjury: c.dateOfInjury,
-      whereEventOccurred: c.whereEventOccurred ?? "",
-      // Mask narrative description when redacted
-      whatHappened: useRedacted ? "[REDACTED]" : (c.whatHappened ?? ""),
-      isPrivacyCase: c.isPrivacyCase ?? false,
-      outcome: c.outcome ?? "",
-      daysAway: c.daysAway ?? 0,
-      daysRestricted: c.daysRestricted ?? 0,
-      caseType: c.caseType ?? "",
-    })),
-    establishment: {
-      name: establishment.name,
-      street: establishment.street,
-      city: establishment.city,
-      state: establishment.state,
-      zip: establishment.zip,
-      naicsCode: establishment.naicsCode,
-      sicCode: establishment.sicCode,
-    },
-    year,
-  };
+    const pdfBytes = await fill300(
+      {
+        establishment: {
+          name: data.establishment.name,
+          city: data.establishment.city,
+          state: data.establishment.state,
+          naicsCode: data.establishment.naicsCode,
+        },
+        year: data.year,
+        cases: data.rows.map((r) => ({
+          caseNumber: r.caseNumber,
+          employeeName: r.employeeName ?? "",
+          employeeJobTitle: r.employeeJobTitle ?? "",
+          dateOfInjury: r.dateOfInjury,
+          whereEventOccurred: r.whereEventOccurred ?? "",
+          whatHappened: r.whatHappened ?? "",
+          isPrivacyCase: r.isPrivacyCase ?? false,
+          outcome: r.outcome ?? "",
+          daysAway: r.daysAway ?? 0,
+          daysRestricted: r.daysRestricted ?? 0,
+          caseType: r.caseType ?? "",
+        })),
+      },
+      lock
+    );
 
-  // renderToBuffer requires a ReactPDF Document element; cast via any to satisfy the overloaded type signature
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfBuffer = await renderToBuffer(React.createElement(Form300Pdf, props) as any);
+    const filename = `OSHA-300-${data.establishment.name.replace(/[^a-z0-9]/gi, "_")}-${data.year}.pdf`;
 
-  const filename = `OSHA-300-${establishment.name.replace(/[^a-z0-9]/gi, "_")}-${year}${useRedacted ? "-redacted" : ""}.pdf`;
-
-  return new Response(new Uint8Array(pdfBuffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": String(pdfBuffer.byteLength),
-    },
-  });
+    return new Response(Buffer.from(pdfBytes), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": forceDownload
+          ? `attachment; filename="${filename}"`
+          : `inline; filename="${filename}"`,
+        "Content-Length": String(pdfBytes.byteLength),
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (err) {
+    console.error("fill300 error:", err);
+    return NextResponse.json(
+      { error: `Failed to fill OSHA Form 300: ${String(err)}` },
+      { status: 500 }
+    );
+  }
 }

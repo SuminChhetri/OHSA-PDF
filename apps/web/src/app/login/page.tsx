@@ -55,11 +55,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%), radial-gradient(circle at 80% 20%, #6366f1 0%, transparent 40%)" }} />
+      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12 relative overflow-hidden" style={{ background: "#0D1117" }}>
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, #f59e0b 0%, transparent 45%), radial-gradient(circle at 80% 20%, #3b82f6 0%, transparent 40%)" }} />
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)", boxShadow: "0 2px 12px rgb(245 158 11 / 0.5)" }}>
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
               </svg>
@@ -68,7 +68,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-4xl font-bold text-white leading-tight tracking-tight">
             Workplace Safety<br />Recordkeeping<br />
-            <span className="text-blue-400">Made Compliant.</span>
+            <span className="text-amber-400">Made Compliant.</span>
           </h1>
           <p className="mt-5 text-slate-400 text-base leading-relaxed">
             Full 29 CFR Part 1904 compliance. Manage injury logs, generate OSHA forms, and stay audit-ready.
@@ -94,7 +94,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden mb-8 flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}>
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
               </svg>
