@@ -81,12 +81,13 @@ async function buildFormPdf(
     // All 12 pages are still present here, so every widget's /P page
     // reference resolves without error.
     doc.getForm().flatten();
-  }
 
-  // Now remove unwanted pages — safe because widgets are already static.
-  const total = doc.getPageCount();
-  for (let i = total - 1; i >= 0; i--) {
-    if (i !== keepPage) doc.removePage(i);
+    // Only remove pages after flatten — removing pages while widgets still
+    // reference them via /P entries causes "Could not find page for PDFRef".
+    const total = doc.getPageCount();
+    for (let i = total - 1; i >= 0; i--) {
+      if (i !== keepPage) doc.removePage(i);
+    }
   }
 
   return doc.save();
@@ -217,19 +218,20 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
     }
   }
 
-  // ── Flatten (always when downloading / redacting — produces read-only PDF) ─
+  // ── Flatten + page removal (only when locking/redacting) ─────────────────
+  // Removing pages while AcroForm widgets still reference them via /P entries
+  // causes "Could not find page for PDFRef". Always flatten first, then prune.
   const shouldLock = lock || redact;
   let helvetica = null as Awaited<ReturnType<typeof doc.embedFont>> | null;
   if (shouldLock) {
     helvetica = await doc.embedFont(StandardFonts.Helvetica);
     doc.getForm().updateFieldAppearances(helvetica);
     doc.getForm().flatten();
-  }
 
-  // ── Remove unwanted pages ─────────────────────────────────────────────────
-  const total = doc.getPageCount();
-  for (let i = total - 1; i >= 0; i--) {
-    if (i !== FORM_PAGES["300a"]) doc.removePage(i);
+    const total = doc.getPageCount();
+    for (let i = total - 1; i >= 0; i--) {
+      if (i !== FORM_PAGES["300a"]) doc.removePage(i);
+    }
   }
 
   // ── Draw professional black redaction boxes ───────────────────────────────
