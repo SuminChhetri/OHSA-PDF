@@ -5,6 +5,17 @@
  *
  * Field names were discovered via GET /api/pdf/fields/[formType].
  * Page indices (0-based): Form 300 = 6, Form 300A = 7, Form 301 = 9.
+ *
+ * WHY copyPages instead of flatten() + removePage():
+ *   The OSHA package PDF has widget annotations whose /P page references
+ *   pdf-lib cannot resolve, causing flatten() to throw "Could not find page
+ *   for PDFRef". The workaround is:
+ *     1. updateFieldAppearances() — bakes values into each widget's /AP stream
+ *     2. copyPages(doc, [targetIndex]) into a fresh PDFDocument — copies the
+ *        page content and its widget annotations (with filled appearance streams)
+ *        but does NOT carry over the AcroForm, so viewers render fields as
+ *        static content rather than editable inputs.
+ *   This avoids both the flatten() crash and the removePage() /P-reference crash.
  */
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -50,17 +61,9 @@ export async function listFields(
 }
 
 /**
- * Loads the package PDF, fills the relevant fields, optionally flattens
- * (making the PDF permanently read-only), then removes every page except
- * the target form page.
- *
- * IMPORTANT: flatten() must be called BEFORE removing pages. Widgets contain
- * references to their parent pages; removing pages first orphans those refs
- * and causes flatten() to throw "Could not find page for PDFRef".
- *
- * @param lock - When true: embed Helvetica, regenerate appearances, then
- *               flatten — output is a clean, read-only static PDF.
- *               When false: the AcroForm stays interactive (editable view).
+ * Fill fields, then either:
+ *   lock=true  → bake appearances + copyPages into a fresh single-page doc (read-only)
+ *   lock=false → return the full 12-page package with fields filled (interactive)
  */
 async function buildFormPdf(
   fillFn: (form: ReturnType<PDFDocument["getForm"]>) => void,
@@ -73,23 +76,16 @@ async function buildFormPdf(
   fillFn(doc.getForm());
 
   if (lock) {
-    // Regenerate all field appearance streams with Helvetica so the
-    // rendered text is clean and consistently sized before flattening.
     const helvetica = await doc.embedFont(StandardFonts.Helvetica);
     doc.getForm().updateFieldAppearances(helvetica);
-    // Flatten converts every widget annotation into static page content.
-    // All 12 pages are still present here, so every widget's /P page
-    // reference resolves without error.
-    doc.getForm().flatten();
 
-    // Only remove pages after flatten — removing pages while widgets still
-    // reference them via /P entries causes "Could not find page for PDFRef".
-    const total = doc.getPageCount();
-    for (let i = total - 1; i >= 0; i--) {
-      if (i !== keepPage) doc.removePage(i);
-    }
+    const out = await PDFDocument.create();
+    const [page] = await out.copyPages(doc, [keepPage]);
+    out.addPage(page);
+    return out.save();
   }
 
+  // Interactive (Edit Directly on PDF): full package, fields remain fillable
   return doc.save();
 }
 
@@ -173,7 +169,7 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const form = doc.getForm();
 
-  // ── Fill all fields with real data ────────────────────────────────────────
+  // ── Fill all fields ───────────────────────────────────────────────────────
   setText(form, "Summary of Injury/Illness Year", String(data.year).slice(-2));
   setText(form, "Summary of Injury/Illness Establishment Name", data.establishment.name);
   setText(form, "Summary of Injury/Illness Street", data.establishment.street);
@@ -204,7 +200,7 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
       new Date(data.certification.certifiedAt).toLocaleDateString("en-US"));
   }
 
-  // ── Collect widget positions for redaction BEFORE flattening ──────────────
+  // ── Collect widget positions for redaction BEFORE baking appearances ───────
   type Rect = { x: number; y: number; width: number; height: number };
   const redactRects: Rect[] = [];
   if (redact) {
@@ -218,47 +214,47 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
     }
   }
 
-  // ── Flatten + page removal (only when locking/redacting) ─────────────────
-  // Removing pages while AcroForm widgets still reference them via /P entries
-  // causes "Could not find page for PDFRef". Always flatten first, then prune.
   const shouldLock = lock || redact;
-  let helvetica = null as Awaited<ReturnType<typeof doc.embedFont>> | null;
+
   if (shouldLock) {
-    helvetica = await doc.embedFont(StandardFonts.Helvetica);
+    // Bake field values into appearance streams (avoids flatten() which crashes
+    // on this PDF due to malformed /P widget references)
+    const helvetica = await doc.embedFont(StandardFonts.Helvetica);
     doc.getForm().updateFieldAppearances(helvetica);
-    doc.getForm().flatten();
 
-    const total = doc.getPageCount();
-    for (let i = total - 1; i >= 0; i--) {
-      if (i !== FORM_PAGES["300a"]) doc.removePage(i);
+    // Copy just the 300A page into a fresh document — no AcroForm carried over,
+    // so the page is effectively read-only in all PDF viewers
+    const out = await PDFDocument.create();
+    const [page] = await out.copyPages(doc, [FORM_PAGES["300a"]]);
+    out.addPage(page);
+
+    // Draw professional black redaction boxes over the establishment fields
+    if (redact && redactRects.length > 0) {
+      const targetPage = out.getPage(0);
+      const font = await out.embedFont(StandardFonts.Helvetica);
+      for (const rect of redactRects) {
+        targetPage.drawRectangle({
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          color: rgb(0, 0, 0),
+        });
+        const fontSize = Math.max(6, Math.min(9, rect.height - 3));
+        targetPage.drawText("REDACTED", {
+          x: rect.x + 3,
+          y: rect.y + (rect.height - fontSize) / 2,
+          size: fontSize,
+          font,
+          color: rgb(1, 1, 1),
+        });
+      }
     }
+
+    return out.save();
   }
 
-  // ── Draw professional black redaction boxes ───────────────────────────────
-  if (redact && redactRects.length > 0) {
-    const page = doc.getPage(0); // 300a is now the only page
-    const font = helvetica ?? await doc.embedFont(StandardFonts.Helvetica);
-    for (const rect of redactRects) {
-      // Solid black box covers the underlying text permanently
-      page.drawRectangle({
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-        color: rgb(0, 0, 0),
-      });
-      // White "REDACTED" label inside the box
-      const fontSize = Math.max(6, Math.min(9, rect.height - 3));
-      page.drawText("REDACTED", {
-        x: rect.x + 3,
-        y: rect.y + (rect.height - fontSize) / 2,
-        size: fontSize,
-        font,
-        color: rgb(1, 1, 1),
-      });
-    }
-  }
-
+  // Interactive (Edit Directly on PDF): return full package with fields filled
   return doc.save();
 }
 
