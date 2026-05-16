@@ -6,11 +6,11 @@ Auto-generated from `apps/web/src/app/`. Do not edit manually.
 
 | Route | File | tRPC Queries Used | Notes |
 |-------|------|-------------------|-------|
-| `/admin` | `apps/web/src/app/(app)/admin/page.tsx` | — |  |
+| `/admin` | `apps/web/src/app/(app)/admin/page.tsx` | — | exec-only |
 | `/archive` | `apps/web/src/app/(app)/archive/page.tsx` | `export.csvITA300A.useQuery`, `reportingYears.retentionStatus.useQuery`, `establishments.list.useQuery` | pdf-download |
 | `/cases/new` | `apps/web/src/app/(app)/cases/new/page.tsx` | `wizard.steps.useQuery`, `cases.create.useMutation` | privacy |
 | `/cases` | `apps/web/src/app/(app)/cases/page.tsx` | `establishments.list.useQuery` |  |
-| `/cases/[id]` | `apps/web/src/app/(app)/cases/[id]/page.tsx` | `cases.get.useQuery`, `audit.forCase.useQuery`, `cases.update.useMutation` | privacy, pdf-download |
+| `/cases/[id]` | `apps/web/src/app/(app)/cases/[id]/page.tsx` | `cases.get.useQuery`, `reportingYears.get.useQuery`, `audit.forCase.useQuery`, `cases.update.useMutation` | privacy, pdf-download |
 | `/dashboard` | `apps/web/src/app/(app)/dashboard/page.tsx` | — |  |
 | `/establishments` | `apps/web/src/app/(app)/establishments/page.tsx` | `establishments.list.useQuery`, `establishments.create.useMutation` |  |
 | `/establishments/[id]` | `apps/web/src/app/(app)/establishments/[id]/page.tsx` | `establishments.get.useQuery`, `reportingYears.create.useMutation`, `establishments.complianceStatus.useQuery` |  |

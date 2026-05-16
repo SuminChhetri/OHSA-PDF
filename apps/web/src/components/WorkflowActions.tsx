@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 type FormStatus = "DRAFT" | "IN_REVIEW" | "NEEDS_CHANGES" | "APPROVED" | "FINALIZED" | "ARCHIVED";
 
 // Which transitions each role can initiate
-const ALLOWED_ACTIONS: Record<string, Array<{ to: FormStatus; label: string; variant: string; requiresComment?: boolean }>> = {
+const ALLOWED_ACTIONS: Record<string, Array<{ to: FormStatus; label: string; variant: string; requiresComment?: boolean; adminOnly?: boolean }>> = {
   DRAFT: [
     { to: "IN_REVIEW", label: "Submit for Review", variant: "primary" },
   ],
@@ -21,8 +21,12 @@ const ALLOWED_ACTIONS: Record<string, Array<{ to: FormStatus; label: string; var
   APPROVED: [
     { to: "FINALIZED", label: "Finalize", variant: "success" },
   ],
-  FINALIZED: [],
-  ARCHIVED:  [],
+  FINALIZED: [
+    { to: "DRAFT", label: "Reopen to Draft", variant: "danger", adminOnly: true },
+  ],
+  ARCHIVED:  [
+    { to: "DRAFT", label: "Unarchive to Draft", variant: "danger", adminOnly: true },
+  ],
 };
 
 // Which roles can trigger which target statuses
@@ -52,6 +56,7 @@ const VARIANT_CLS: Record<string, string> = {
   primary: "btn-primary",
   success: "inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50",
   warning: "inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-50",
+  danger:  "inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50",
 };
 
 export function WorkflowActions({
@@ -60,7 +65,7 @@ export function WorkflowActions({
 }: WorkflowActionsProps) {
   const currentStatus = status as FormStatus;
   const actions = (ALLOWED_ACTIONS[currentStatus] ?? []).filter(
-    (a) => ROLE_CAN[a.to]?.includes(role)
+    (a) => ROLE_CAN[a.to]?.includes(role) && (!a.adminOnly || role === "ADMIN")
   );
 
   const [activeAction, setActiveAction] = useState<FormStatus | null>(null);
@@ -178,9 +183,9 @@ export function WorkflowActions({
         <p className="text-sm text-red-600">{error}</p>
       )}
 
-      {currentStatus === "FINALIZED" && (
+      {(currentStatus === "FINALIZED" || currentStatus === "ARCHIVED") && role !== "ADMIN" && (
         <p className="text-xs text-slate-400">
-          This form is finalized and locked. Contact an admin to reopen.
+          This form is {currentStatus.toLowerCase()} and locked. Contact an admin to reopen.
         </p>
       )}
     </div>

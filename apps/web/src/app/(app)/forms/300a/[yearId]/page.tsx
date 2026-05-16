@@ -118,6 +118,7 @@ export default function Form300APage({ params }: Form300APageProps) {
 
   const { establishment, year, certification, totals } = data;
   const role = session?.user.role ?? "";
+  const isLocked = data.status === "FINALIZED" || data.status === "ARCHIVED";
 
   const hasSaved = data.avgEmployees != null || data.totalHoursWorked != null;
 
@@ -275,20 +276,28 @@ export default function Form300APage({ params }: Form300APageProps) {
 
           {/* Save + Edit Directly on PDF */}
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
-            <button
-              type="submit"
-              disabled={updateStatsMutation.isPending}
-              className="btn-primary"
-            >
-              {updateStatsMutation.isPending ? "Saving…" : "Save"}
-            </button>
-            <button
-              type="button"
-              onClick={() => openViewer("Edit Directly on PDF", true)}
-              className="btn-secondary"
-            >
-              Edit Directly on PDF
-            </button>
+            {isLocked ? (
+              <p className="text-sm text-slate-500">
+                Form is <span className="font-semibold">{data.status.toLowerCase()}</span> — data entry is locked. Ask an admin to reopen.
+              </p>
+            ) : (
+              <>
+                <button
+                  type="submit"
+                  disabled={updateStatsMutation.isPending}
+                  className="btn-primary"
+                >
+                  {updateStatsMutation.isPending ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openViewer("Edit Directly on PDF", true)}
+                  className="btn-secondary"
+                >
+                  Edit Directly on PDF
+                </button>
+              </>
+            )}
             {saveSuccess && !isDirty && (
               <span className="text-sm text-green-600 font-medium">Saved successfully.</span>
             )}

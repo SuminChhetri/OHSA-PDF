@@ -25,22 +25,22 @@ export async function GET(
 
   if (!c) return NextResponse.json({ error: "Case not found" }, { status: 404 });
 
-  await ctx.prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "DOWNLOAD_UNREDACTED",
-      entityType: "Form301",
-      entityId: params.caseId,
-      caseId: params.caseId,
-      reason: "Form 301 PDF viewed/downloaded",
-    },
-  });
-
   try {
     const sp = req.nextUrl.searchParams;
     const forceDownload = sp.get("download") === "1";
     const lockOnly = sp.get("lock") === "1";
     const lock = forceDownload || lockOnly;
+
+    await ctx.prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: forceDownload ? "DOWNLOAD_UNREDACTED" : "PDF_VIEW",
+        entityType: "Form301",
+        entityId: params.caseId,
+        caseId: params.caseId,
+        reason: forceDownload ? "Form 301 PDF downloaded" : "Form 301 PDF viewed inline",
+      },
+    });
     const pdfBytes = await fill301({
       caseNumber: c.caseNumber as string,
       employeeName: (c.employeeName as string) ?? "",

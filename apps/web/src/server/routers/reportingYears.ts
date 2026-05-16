@@ -18,7 +18,7 @@ const TRANSITION_ROLES: Record<FormStatus, string[]> = {
 
 // Which source statuses may flow into each target status
 const VALID_FROM: Record<FormStatus, FormStatus[]> = {
-  DRAFT:         ["IN_REVIEW", "NEEDS_CHANGES", "APPROVED", "FINALIZED"], // reopen from any
+  DRAFT:         ["IN_REVIEW", "NEEDS_CHANGES", "APPROVED", "FINALIZED", "ARCHIVED"], // admin reopen
   IN_REVIEW:     ["DRAFT", "NEEDS_CHANGES"],
   NEEDS_CHANGES: ["IN_REVIEW"],
   APPROVED:      ["IN_REVIEW"],
@@ -112,7 +112,7 @@ export const reportingYearsRouter = router({
       };
 
       // Track who performed each workflow action
-      if (["DRAFT", "IN_REVIEW"].includes(targetStatus) && !ry.preparedById) {
+      if (targetStatus === "IN_REVIEW" && !ry.preparedById) {
         updateData.preparedById = userId;
       }
       if (["NEEDS_CHANGES", "APPROVED"].includes(targetStatus)) {
@@ -122,6 +122,10 @@ export const reportingYearsRouter = router({
       if (targetStatus === "FINALIZED") {
         updateData.finalizedAt = new Date();
         updateData.version = (ry.version ?? 1) + 1;
+      }
+      // Clear finalizedAt when reopening a finalized/archived form
+      if (targetStatus === "DRAFT" && (currentStatus === "FINALIZED" || currentStatus === "ARCHIVED")) {
+        updateData.finalizedAt = null;
       }
 
       const updated = await ctx.prisma.reportingYear.update({

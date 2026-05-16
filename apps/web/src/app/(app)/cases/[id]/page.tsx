@@ -15,6 +15,7 @@ import {
 } from "@/lib/case-constants";
 import { usePdfViewer } from "@/lib/hooks/usePdfViewer";
 import { PdfViewerPanel } from "@/components/PdfViewerPanel";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface CaseDetailPageProps {
   params: { id: string };
@@ -43,7 +44,14 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     refetch,
   } = trpc.cases.get.useQuery({ id });
 
+  const { data: ryData } = trpc.reportingYears.get.useQuery(
+    { id: caseData?.reportingYearId ?? "" },
+    { enabled: !!caseData?.reportingYearId }
+  );
+
   const { data: auditLogs } = trpc.audit.forCase.useQuery({ caseId: id });
+
+  const isLocked = ryData?.status === "FINALIZED" || ryData?.status === "ARCHIVED";
 
   const updateMutation = trpc.cases.update.useMutation({
     onSuccess: () => {
@@ -172,16 +180,24 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           )}
         </div>
         {!editMode && (
-          <div className="flex gap-2 self-start flex-wrap">
+          <div className="flex flex-wrap items-center gap-2 self-start">
+            {ryData?.status && <StatusBadge status={ryData.status} />}
             <button
               onClick={() => setShowPdf((v) => !v)}
               className="btn-secondary text-sm"
             >
               {showPdf ? "Hide Form 301" : "View Form 301 PDF"}
             </button>
-            <button onClick={enterEditMode} className="btn-primary">
-              Edit
-            </button>
+            {!isLocked && (
+              <button onClick={enterEditMode} className="btn-primary">
+                Edit
+              </button>
+            )}
+            {isLocked && (
+              <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded-md px-3 py-1.5">
+                Form is {ryData?.status?.toLowerCase()} — editing locked
+              </span>
+            )}
           </div>
         )}
       </div>

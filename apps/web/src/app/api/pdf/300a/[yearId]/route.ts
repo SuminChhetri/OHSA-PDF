@@ -32,24 +32,25 @@ export async function GET(
     return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
   }
 
-  await ctx.prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "DOWNLOAD_UNREDACTED",
-      entityType: "Form300A",
-      entityId: params.yearId,
-      reason: "Form 300A PDF viewed/downloaded",
-    },
-  });
-
   try {
     const sp = req.nextUrl.searchParams;
     const forceDownload = sp.get("download") === "1";
     const lockOnly = sp.get("lock") === "1";
     const redacted = sp.get("redacted") === "1";
 
-    // Lock when downloading (always) or when explicitly requested for view-only
     const lock = forceDownload || lockOnly;
+
+    await ctx.prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: forceDownload ? (redacted ? "DOWNLOAD_REDACTED" : "DOWNLOAD_UNREDACTED") : "PDF_VIEW",
+        entityType: "Form300A",
+        entityId: params.yearId,
+        reason: forceDownload
+          ? (redacted ? "Form 300A redacted PDF downloaded" : "Form 300A PDF downloaded")
+          : "Form 300A PDF viewed inline",
+      },
+    });
 
     const pdfBytes = await fill300A(
       {

@@ -130,12 +130,25 @@ export const casesRouter = router({
       return cases.map((c) => decryptCaseFields(applyPrivacyMask(c, role)));
     }),
 
-  /** Get a single case (Form 301 view). Logs VIEW_PRIVACY for admin access to privacy cases. */
+  /** Get a single case (Form 301 view). Logs VIEW_PRIVACY when admin accesses a privacy case's real PII. */
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const c = await ctx.prisma.case.findUniqueOrThrow({ where: { id: input.id } });
       const role = ctx.session.user.role;
+      // Log when admin views the real identity of a privacy case
+      if (c.isPrivacyCase && role === "ADMIN") {
+        await ctx.prisma.auditLog.create({
+          data: {
+            userId: ctx.session.user.id,
+            action: "VIEW_PRIVACY_CASE",
+            entityType: "Case",
+            entityId: input.id,
+            caseId: input.id,
+            reason: "Admin accessed real identity of privacy case",
+          },
+        });
+      }
       return decryptCaseFields(applyPrivacyMask(c, role));
     }),
 
@@ -184,6 +197,13 @@ export const casesRouter = router({
       const ry = await ctx.prisma.reportingYear.findUniqueOrThrow({
         where: { id: input.reportingYearId },
       });
+
+      if (ry.status === "FINALIZED" || ry.status === "ARCHIVED") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Cannot add cases to a ${ry.status.toLowerCase()} form. Ask an admin to reopen it first.`,
+        });
+      }
       const existingCount = await ctx.prisma.case.count({
         where: { reportingYearId: input.reportingYearId },
       });
@@ -226,7 +246,17 @@ export const casesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const before = await ctx.prisma.case.findUniqueOrThrow({ where: { id: input.id } });
+      const before = await ctx.prisma.case.findUniqueOrThrow({
+        where: { id: input.id },
+        include: { reportingYear: { select: { status: true } } },
+      });
+
+      if (before.reportingYear.status === "FINALIZED" || before.reportingYear.status === "ARCHIVED") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Cannot edit a case in a ${before.reportingYear.status.toLowerCase()} form. Ask an admin to reopen it first.`,
+        });
+      }
 
       const encryptedData = encryptCaseFields({ ...input.caseData });
 

@@ -19,7 +19,7 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 | Procedure | Tier | Kind | Description |
 |-----------|------|------|-------------|
 | `list` | `protected` | query | List all cases for a reporting year (300 Log view). |
-| `get` | `protected` | query | Get a single case (Form 301 view). Logs VIEW_PRIVACY for admin access to privacy cases. |
+| `get` | `protected` | query | Get a single case (Form 301 view). Logs VIEW_PRIVACY when admin accesses a privacy case's real PII. |
 | `getPrivacyRoster` | `protected` | query | Get the confidential privacy case roster for a reporting year. Per 1904.29(b)(6): maintain a separate list of case numbers and employee names for privacy cases, available to government representatives upon request. Admin-only access. / |
 | `create` | `recordkeeper` | mutation | Create a new case (Form 301 entry). Auto-assigns case number. |
 | `update` | `recordkeeper` | query | Update a case. Records before/after snapshot in audit log. |

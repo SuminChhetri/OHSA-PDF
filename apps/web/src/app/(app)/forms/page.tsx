@@ -5,6 +5,7 @@ import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { usePdfViewer } from "@/lib/hooks/usePdfViewer";
 import { PdfViewerPanel } from "@/components/PdfViewerPanel";
+import { StatusBadge } from "@/components/StatusBadge";
 
 function FormInfoCard({ title, subtitle, description, color }: {
   title: string; subtitle: string; description: string; color: string;
@@ -124,6 +125,7 @@ export default function FormsPage() {
               <thead>
                 <tr>
                   <th>Year</th>
+                  <th>Status</th>
                   <th className="text-right">Cases</th>
                   <th className="text-right">Form 300</th>
                   <th className="text-right">Form 300A</th>
@@ -131,43 +133,51 @@ export default function FormsPage() {
                 </tr>
               </thead>
               <tbody>
-                {years.map((ry) => (
-                  <tr key={ry.id} className={activeForm?.yearId === ry.id ? "bg-blue-50" : ""}>
-                    <td className="font-semibold text-slate-900">{ry.year}</td>
-                    <td className="text-right text-slate-600">{ry._count.cases}</td>
-                    <td className="text-right">
-                      <button
-                        onClick={() => openPdf(`/api/pdf/300/${ry.id}`, `Form 300 — ${ry.year}`, ry.id, "300")}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
-                      >
-                        View
-                      </button>
-                    </td>
-                    <td className="text-right">
-                      <button
-                        onClick={() => openPdf(`/api/pdf/300a/${ry.id}`, `Form 300A — ${ry.year}`, ry.id, "300a")}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
-                      >
-                        View
-                      </button>
-                      <span className="mx-2 text-slate-300">|</span>
-                      <Link
-                        href={`/forms/300a/${ry.id}`}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline"
-                      >
-                        Manage / Certify
-                      </Link>
-                    </td>
-                    <td className="text-right">
-                      <Link
-                        href={`/cases/new?ryid=${ry.id}`}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
-                      >
-                        + Add Case
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {years.map((ry) => {
+                  const isLocked = ry.status === "FINALIZED" || ry.status === "ARCHIVED";
+                  return (
+                    <tr key={ry.id} className={activeForm?.yearId === ry.id ? "bg-blue-50" : ""}>
+                      <td className="font-semibold text-slate-900">{ry.year}</td>
+                      <td><StatusBadge status={ry.status ?? "DRAFT"} /></td>
+                      <td className="text-right text-slate-600">{ry._count.cases}</td>
+                      <td className="text-right">
+                        <button
+                          onClick={() => openPdf(`/api/pdf/300/${ry.id}`, `Form 300 — ${ry.year}`, ry.id, "300")}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                        >
+                          View
+                        </button>
+                      </td>
+                      <td className="text-right">
+                        <button
+                          onClick={() => openPdf(`/api/pdf/300a/${ry.id}`, `Form 300A — ${ry.year}`, ry.id, "300a")}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                        >
+                          View
+                        </button>
+                        <span className="mx-2 text-slate-300">|</span>
+                        <Link
+                          href={`/forms/300a/${ry.id}`}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium hover:underline"
+                        >
+                          Manage
+                        </Link>
+                      </td>
+                      <td className="text-right">
+                        {isLocked ? (
+                          <span className="text-xs text-slate-400">Locked</span>
+                        ) : (
+                          <Link
+                            href={`/cases/new?ryid=${ry.id}`}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                          >
+                            + Add Case
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

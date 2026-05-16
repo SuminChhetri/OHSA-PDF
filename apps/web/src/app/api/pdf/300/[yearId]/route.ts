@@ -31,21 +31,21 @@ export async function GET(
     return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
   }
 
-  await ctx.prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "DOWNLOAD_UNREDACTED",
-      entityType: "Form300",
-      entityId: params.yearId,
-      reason: "Form 300 PDF viewed/downloaded",
-    },
-  });
-
   try {
     const sp = req.nextUrl.searchParams;
     const forceDownload = sp.get("download") === "1";
     const lockOnly = sp.get("lock") === "1";
     const lock = forceDownload || lockOnly;
+
+    await ctx.prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: forceDownload ? "DOWNLOAD_UNREDACTED" : "PDF_VIEW",
+        entityType: "Form300",
+        entityId: params.yearId,
+        reason: forceDownload ? "Form 300 PDF downloaded" : "Form 300 PDF viewed inline",
+      },
+    });
 
     const pdfBytes = await fill300(
       {
