@@ -2,6 +2,7 @@ interface PdfViewerPanelProps {
   title: string;
   blobUrl: string | null;
   loading: boolean;
+  error?: string | null;
   onClose: () => void;
   downloadUrl?: string;
   redactedDownloadUrl?: string;
@@ -25,12 +26,13 @@ export function PdfViewerPanel({
   title,
   blobUrl,
   loading,
+  error,
   onClose,
   downloadUrl,
   redactedDownloadUrl,
   extraActions,
 }: PdfViewerPanelProps) {
-  if (!loading && !blobUrl) return null;
+  if (!loading && !blobUrl && !error) return null;
 
   return (
     <div className="card overflow-hidden">
@@ -79,6 +81,10 @@ export function PdfViewerPanel({
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto" />
             <p className="text-sm text-slate-500">Loading PDF…</p>
           </div>
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center bg-slate-50" style={{ height: "20vh" }}>
+          <p className="text-sm text-red-600">{error}</p>
         </div>
       ) : blobUrl ? (
         <iframe

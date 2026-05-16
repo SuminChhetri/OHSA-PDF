@@ -31,7 +31,7 @@ interface ActiveForm {
 export default function FormsPage() {
   const [selectedEstId, setSelectedEstId] = useState("");
   const [activeForm, setActiveForm] = useState<ActiveForm | null>(null);
-  const { blobUrl, loading, fetchPdf, close } = usePdfViewer();
+  const { blobUrl, loading, error: pdfError, fetchPdf, close } = usePdfViewer();
 
   const { data: establishments, isLoading: estLoading } = trpc.establishments.list.useQuery();
   const { data: years, isLoading: yearsLoading } = trpc.reportingYears.list.useQuery(
@@ -190,6 +190,7 @@ export default function FormsPage() {
           title={activeForm.title}
           blobUrl={blobUrl}
           loading={loading}
+          error={pdfError}
           onClose={closePdf}
           downloadUrl={`${activeForm.url}?download=1`}
           redactedDownloadUrl={activeForm.formType === "300a" ? `${activeForm.url}?download=1&redacted=1` : undefined}

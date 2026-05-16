@@ -53,33 +53,78 @@ export const usersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.user.findUnique({ where: { email: input.email } });
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "An account with this email already exists." });
+      }
       const passwordHash = await bcrypt.hash(input.password, 12);
-      return ctx.prisma.user.create({
+      const user = await ctx.prisma.user.create({
         data: { email: input.email, name: input.name, role: input.role, passwordHash },
         select: { id: true, email: true, name: true, role: true },
       });
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId: ctx.session.user.id,
+          action: "CREATE",
+          entityType: "User",
+          entityId: user.id,
+          after: JSON.stringify({ email: user.email, role: user.role }),
+          reason: `Admin created account for ${user.email}`,
+        },
+      });
+      return user;
     }),
 
   /** Update a user's role. Admin only. */
   updateRole: adminProcedure
     .input(z.object({ userId: z.string(), role: z.enum(VALID_ROLES) }))
-    .mutation(({ ctx, input }) => {
-      return ctx.prisma.user.update({
+    .mutation(async ({ ctx, input }) => {
+      const before = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: input.userId },
+        select: { role: true, email: true },
+      });
+      const updated = await ctx.prisma.user.update({
         where: { id: input.userId },
         data: { role: input.role },
         select: { id: true, email: true, role: true },
       });
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId: ctx.session.user.id,
+          action: "PERMISSION_CHANGE",
+          entityType: "User",
+          entityId: input.userId,
+          before: JSON.stringify({ role: before.role }),
+          after: JSON.stringify({ role: input.role }),
+          reason: `Role changed for ${before.email}: ${before.role} → ${input.role}`,
+        },
+      });
+      return updated;
     }),
 
   /** Reset a user's password. Admin only. */
   resetPassword: adminProcedure
     .input(z.object({ userId: z.string(), newPassword: z.string().min(8) }))
     .mutation(async ({ ctx, input }) => {
+      const target = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: input.userId },
+        select: { email: true },
+      });
       const passwordHash = await bcrypt.hash(input.newPassword, 12);
-      return ctx.prisma.user.update({
+      const updated = await ctx.prisma.user.update({
         where: { id: input.userId },
         data: { passwordHash },
         select: { id: true, email: true },
       });
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId: ctx.session.user.id,
+          action: "UPDATE",
+          entityType: "User",
+          entityId: input.userId,
+          reason: `Password reset for ${target.email}`,
+        },
+      });
+      return updated;
     }),
 });

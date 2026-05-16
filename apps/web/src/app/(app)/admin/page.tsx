@@ -14,6 +14,7 @@ export default async function AdminPage() {
     { href: "/cases",           label: "All Cases",             desc: "Browse and search all recorded incidents" },
     { href: "/forms",           label: "Forms",                 desc: "View 300, 300A, and 301 PDFs across all years" },
     { href: "/archive",         label: "Archive",               desc: "Retention status and 5-year retention enforcement" },
+    { href: "/admin/users",     label: "User Management",       desc: "Create accounts, assign roles, reset passwords" },
   ];
 
   return (

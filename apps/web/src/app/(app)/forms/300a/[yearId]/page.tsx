@@ -372,6 +372,7 @@ export default function Form300APage({ params }: Form300APageProps) {
         title={viewerTitle || "Form 300A"}
         blobUrl={pdfViewer.blobUrl}
         loading={pdfViewer.loading}
+        error={pdfViewer.error}
         onClose={closeViewer}
         downloadUrl={`/api/pdf/300a/${yearId}?download=1`}
       />

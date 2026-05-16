@@ -208,6 +208,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           title={`Form 301 — Case #${caseData.caseNumber}`}
           blobUrl={pdf301.blobUrl}
           loading={pdf301.loading}
+          error={pdf301.error}
           onClose={() => setShowPdf(false)}
           downloadUrl={`/api/pdf/301/${id}?download=1`}
         />

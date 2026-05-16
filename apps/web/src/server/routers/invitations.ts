@@ -80,7 +80,11 @@ export const invitationsRouter = router({
     .input(z.object({ establishmentId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.prisma.invitation.findMany({
-        where: { establishmentId: input.establishmentId, acceptedAt: null },
+        where: {
+          establishmentId: input.establishmentId,
+          acceptedAt: null,
+          expiresAt: { gt: new Date() },
+        },
         include: { invitedBy: { select: { name: true, email: true } } },
         orderBy: { createdAt: "desc" },
       });

@@ -110,6 +110,7 @@ export default function YearLogPage({ params }: YearLogPageProps) {
         title={`Form 300 — ${ry?.year ?? ""} Log`}
         blobUrl={pdfViewer.blobUrl}
         loading={pdfViewer.loading}
+        error={pdfViewer.error}
         onClose={pdfViewer.close}
         downloadUrl={`/api/pdf/300/${yearId}?download=1`}
       />

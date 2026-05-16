@@ -92,6 +92,7 @@ export default function NewCasePage() {
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState("");
 
   const { data: stepsData } = trpc.wizard.steps.useQuery();
   const createMutation = trpc.cases.create.useMutation({
@@ -203,9 +204,10 @@ export default function NewCasePage() {
     e.preventDefault();
     if (!validateForm()) return;
     if (!reportingYearId) {
-      alert("No reporting year selected. Please go back and select a year.");
+      setSubmitError("No reporting year selected. Please go back and select a year.");
       return;
     }
+    setSubmitError("");
 
     const daysAway = wizardAnswers["DAYS_AWAY"];
 
@@ -475,9 +477,9 @@ export default function NewCasePage() {
         )}
       </div>
 
-      {createMutation.error && (
+      {(submitError || createMutation.error) && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {createMutation.error.message}
+          {submitError || createMutation.error?.message}
         </div>
       )}
 
