@@ -6,19 +6,31 @@
  * Field names were discovered via GET /api/pdf/fields/[formType].
  * Page indices (0-based): Form 300 = 6, Form 300A = 7, Form 301 = 9.
  *
- * WHY copyPages instead of flatten() + removePage():
- *   The OSHA package PDF has widget annotations whose /P page references
- *   pdf-lib cannot resolve, causing flatten() to throw "Could not find page
- *   for PDFRef". The workaround is:
- *     1. updateFieldAppearances() — bakes values into each widget's /AP stream
- *     2. copyPages(doc, [targetIndex]) into a fresh PDFDocument — copies the
- *        page content and its widget annotations (with filled appearance streams)
- *        but does NOT carry over the AcroForm, so viewers render fields as
- *        static content rather than editable inputs.
- *   This avoids both the flatten() crash and the removePage() /P-reference crash.
+ * WHY per-field try/catch + copyPages instead of updateFieldAppearances() + flatten():
+ *   The OSHA package PDF has widget annotations on some pages whose /P page
+ *   references pdf-lib cannot resolve. Both flatten() and updateFieldAppearances()
+ *   call findWidgetPage() internally, which throws "Could not find page for PDFRef".
+ *
+ *   Workaround for locked/read-only output:
+ *     1. Iterate fields individually — call updateAppearances() per field inside
+ *        try/catch so broken widgets on other pages are silently skipped while
+ *        the target form page's fields get their values baked into /AP streams.
+ *     2. copyPages(doc, [targetIndex]) into a fresh PDFDocument — extracts just
+ *        the one page with its filled widget annotations (appearance streams intact)
+ *        but no AcroForm in the new doc, so viewers render fields as static content.
+ *
+ *   This avoids both the findWidgetPage crash and the removePage /P-reference crash.
  */
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFTextField,
+  PDFCheckBox,
+  PDFDropdown,
+  PDFOptionList,
+  StandardFonts,
+  rgb,
+} from "pdf-lib";
 
 const OSHA_PACKAGE_URL =
   "https://www.osha.gov/sites/default/files/OSHA-RK-Forms-Package.pdf";
@@ -61,8 +73,30 @@ export async function listFields(
 }
 
 /**
+ * Bake field appearances field-by-field, skipping any widget that crashes
+ * due to the OSHA PDF's malformed /P page references on some pages.
+ */
+async function safeUpdateAppearances(
+  doc: PDFDocument,
+  font: Awaited<ReturnType<typeof doc.embedFont>>
+) {
+  const form = doc.getForm();
+  for (const field of form.getFields()) {
+    try {
+      if (field instanceof PDFTextField) field.updateAppearances(font);
+      else if (field instanceof PDFCheckBox) field.updateAppearances();
+      else if (field instanceof PDFDropdown) field.updateAppearances(font);
+      else if (field instanceof PDFOptionList) field.updateAppearances(font);
+    } catch {
+      // skip — widget has a malformed /P page reference
+    }
+  }
+}
+
+/**
  * Fill fields, then either:
- *   lock=true  → bake appearances + copyPages into a fresh single-page doc (read-only)
+ *   lock=true  → bake appearances (per-field, crash-safe) + copyPages into a
+ *                fresh single-page doc (no AcroForm → read-only in all viewers)
  *   lock=false → return the full 12-page package with fields filled (interactive)
  */
 async function buildFormPdf(
@@ -76,8 +110,8 @@ async function buildFormPdf(
   fillFn(doc.getForm());
 
   if (lock) {
-    const helvetica = await doc.embedFont(StandardFonts.Helvetica);
-    doc.getForm().updateFieldAppearances(helvetica);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    await safeUpdateAppearances(doc, font);
 
     const out = await PDFDocument.create();
     const [page] = await out.copyPages(doc, [keepPage]);
@@ -217,13 +251,14 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
   const shouldLock = lock || redact;
 
   if (shouldLock) {
-    // Bake field values into appearance streams (avoids flatten() which crashes
-    // on this PDF due to malformed /P widget references)
-    const helvetica = await doc.embedFont(StandardFonts.Helvetica);
-    doc.getForm().updateFieldAppearances(helvetica);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
 
-    // Copy just the 300A page into a fresh document — no AcroForm carried over,
-    // so the page is effectively read-only in all PDF viewers
+    // Bake appearances per-field with error isolation — skips any widget
+    // that has a malformed /P reference without crashing the whole export
+    await safeUpdateAppearances(doc, font);
+
+    // Extract just the 300A page into a fresh document (no AcroForm carried
+    // over → fields render as static read-only content in all PDF viewers)
     const out = await PDFDocument.create();
     const [page] = await out.copyPages(doc, [FORM_PAGES["300a"]]);
     out.addPage(page);
@@ -231,7 +266,7 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
     // Draw professional black redaction boxes over the establishment fields
     if (redact && redactRects.length > 0) {
       const targetPage = out.getPage(0);
-      const font = await out.embedFont(StandardFonts.Helvetica);
+      const outFont = await out.embedFont(StandardFonts.Helvetica);
       for (const rect of redactRects) {
         targetPage.drawRectangle({
           x: rect.x,
@@ -245,7 +280,7 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
           x: rect.x + 3,
           y: rect.y + (rect.height - fontSize) / 2,
           size: fontSize,
-          font,
+          font: outFont,
           color: rgb(1, 1, 1),
         });
       }
