@@ -1,25 +1,24 @@
 /**
  * Downloads the official OSHA Forms Package from osha.gov (a single 12-page PDF),
- * fills AcroForm fields with real data using pdf-lib, then extracts just the
- * relevant page(s) so each endpoint returns a clean single-form PDF.
+ * fills AcroForm fields with real data using pdf-lib, then returns a single-page
+ * PDF containing only the relevant form.
  *
  * Field names were discovered via GET /api/pdf/fields/[formType].
  * Page indices (0-based): Form 300 = 6, Form 300A = 7, Form 301 = 9.
  *
- * WHY per-field try/catch + copyPages instead of updateFieldAppearances() + flatten():
- *   The OSHA package PDF has widget annotations on some pages whose /P page
- *   references pdf-lib cannot resolve. Both flatten() and updateFieldAppearances()
- *   call findWidgetPage() internally, which throws "Could not find page for PDFRef".
+ * WHY removePage instead of copyPages:
+ *   copyPages() strips the AcroForm from the output document, so viewers
+ *   fall back to /AP appearance streams. The OSHA package has widgets with
+ *   malformed /P page references that crash updateAppearances(), so /AP
+ *   streams are never baked and the copied page shows blank fields.
  *
- *   Workaround for locked/read-only output:
- *     1. Iterate fields individually — call updateAppearances() per field inside
- *        try/catch so broken widgets on other pages are silently skipped while
- *        the target form page's fields get their values baked into /AP streams.
- *     2. copyPages(doc, [targetIndex]) into a fresh PDFDocument — extracts just
- *        the one page with its filled widget annotations (appearance streams intact)
- *        but no AcroForm in the new doc, so viewers render fields as static content.
+ *   removePage() never inspects widget /P references — it only edits the
+ *   /Pages tree — so it is immune to the crash. After removing all non-target
+ *   pages the AcroForm stays intact. Viewers render field values directly
+ *   from /V on the AcroField objects, so filled values are always visible.
  *
- *   This avoids both the findWidgetPage crash and the removePage /P-reference crash.
+ *   safeUpdateAppearances() is still called for locked/redacted output as a
+ *   best-effort appearance bake; skipped fields still display via /V.
  */
 
 import {
@@ -94,10 +93,28 @@ async function safeUpdateAppearances(
 }
 
 /**
- * Fill fields, then either:
- *   lock=true  → bake appearances (per-field, crash-safe) + copyPages into a
- *                fresh single-page doc (no AcroForm → read-only in all viewers)
- *   lock=false → return the full 12-page package with fields filled (interactive)
+ * Remove all pages except the one at targetIndex.
+ * Works by removing pages above the target first (indices don't shift),
+ * then repeatedly removing the new page 0 (the pages below the target).
+ * This never calls findWidgetPage() → immune to the PDFRef crash.
+ */
+function keepOnlyPage(doc: PDFDocument, targetIndex: number): void {
+  const total = doc.getPageCount();
+  // Remove pages after the target (high → low, indices above target don't shift)
+  for (let i = total - 1; i > targetIndex; i--) {
+    doc.removePage(i);
+  }
+  // Remove pages before the target (always remove index 0, shifts remaining)
+  for (let i = 0; i < targetIndex; i++) {
+    doc.removePage(0);
+  }
+}
+
+/**
+ * Fill fields, then extract just the target page (keeping the AcroForm so
+ * PDF viewers render field values from /V):
+ *   lock=true  → bake appearances best-effort, then keepOnlyPage (single-page, AcroForm intact)
+ *   lock=false → keepOnlyPage only (interactive single-page form)
  */
 async function buildFormPdf(
   fillFn: (form: ReturnType<PDFDocument["getForm"]>) => void,
@@ -112,14 +129,11 @@ async function buildFormPdf(
   if (lock) {
     const font = await doc.embedFont(StandardFonts.Helvetica);
     await safeUpdateAppearances(doc, font);
-
-    const out = await PDFDocument.create();
-    const [page] = await out.copyPages(doc, [keepPage]);
-    out.addPage(page);
-    return out.save();
   }
 
-  // Interactive (Edit Directly on PDF): full package, fields remain fillable
+  // Strip all pages except the target — AcroForm stays intact.
+  keepOnlyPage(doc, keepPage);
+
   return doc.save();
 }
 
@@ -234,7 +248,7 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
       new Date(data.certification.certifiedAt).toLocaleDateString("en-US"));
   }
 
-  // ── Collect widget positions for redaction BEFORE baking appearances ───────
+  // ── Collect widget positions for redaction BEFORE modifying field values ──
   type Rect = { x: number; y: number; width: number; height: number };
   const redactRects: Rect[] = [];
   if (redact) {
@@ -246,50 +260,47 @@ export async function fill300A(data: Data300A, lock = false, redact = false): Pr
         }
       } catch { /* field absent */ }
     }
+    // Clear the actual values so they are inaccessible in the AcroForm
+    for (const fieldName of REDACT_FIELDS_300A) {
+      try {
+        form.getTextField(fieldName).setText("");
+      } catch { /* field absent */ }
+    }
   }
 
   const shouldLock = lock || redact;
 
   if (shouldLock) {
     const font = await doc.embedFont(StandardFonts.Helvetica);
-
-    // Bake appearances per-field with error isolation — skips any widget
-    // that has a malformed /P reference without crashing the whole export
     await safeUpdateAppearances(doc, font);
-
-    // Extract just the 300A page into a fresh document (no AcroForm carried
-    // over → fields render as static read-only content in all PDF viewers)
-    const out = await PDFDocument.create();
-    const [page] = await out.copyPages(doc, [FORM_PAGES["300a"]]);
-    out.addPage(page);
-
-    // Draw professional black redaction boxes over the establishment fields
-    if (redact && redactRects.length > 0) {
-      const targetPage = out.getPage(0);
-      const outFont = await out.embedFont(StandardFonts.Helvetica);
-      for (const rect of redactRects) {
-        targetPage.drawRectangle({
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-          color: rgb(0, 0, 0),
-        });
-        const fontSize = Math.max(6, Math.min(9, rect.height - 3));
-        targetPage.drawText("REDACTED", {
-          x: rect.x + 3,
-          y: rect.y + (rect.height - fontSize) / 2,
-          size: fontSize,
-          font: outFont,
-          color: rgb(1, 1, 1),
-        });
-      }
-    }
-
-    return out.save();
   }
 
-  // Interactive (Edit Directly on PDF): return full package with fields filled
+  // Extract only the 300A page — AcroForm stays intact so viewers render /V
+  keepOnlyPage(doc, FORM_PAGES["300a"]);
+
+  // Draw black redaction boxes on the remaining page (now at index 0)
+  if (redact && redactRects.length > 0) {
+    const page = doc.getPage(0);
+    const outFont = await doc.embedFont(StandardFonts.Helvetica);
+    for (const rect of redactRects) {
+      page.drawRectangle({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        color: rgb(0, 0, 0),
+      });
+      const fontSize = Math.max(6, Math.min(9, rect.height - 3));
+      page.drawText("REDACTED", {
+        x: rect.x + 3,
+        y: rect.y + (rect.height - fontSize) / 2,
+        size: fontSize,
+        font: outFont,
+        color: rgb(1, 1, 1),
+      });
+    }
+  }
+
   return doc.save();
 }
 
