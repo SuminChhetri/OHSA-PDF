@@ -10,8 +10,9 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 
 | Procedure | Tier | Kind | Description |
 |-----------|------|------|-------------|
-| `list` | `protected` | query | List audit log entries. Admin and Reviewer only. |
+| `list` | `protected` | query | List audit log entries. Admin, Reviewer, and Executive only. |
 | `forCase` | `protected` | query | Get full audit history for a specific case. |
+| `forYear` | `protected` | query | Activity trail for a reporting year — status changes, PDF views, downloads, certifications, and case-level events. Accessible to ADMIN, REVIEWER, EXECUTIVE, and RECORDKEEPER. / |
 
 ## `cases` (`apps/web/src/server/routers/cases.ts`)
 
@@ -68,6 +69,7 @@ Auto-generated from `apps/web/src/server/routers/`. Do not edit manually.
 |-----------|------|------|-------------|
 | `list` | `protected` | query | List reporting years for an establishment (newest first). |
 | `get` | `protected` | query | Get a single reporting year with full stats needed for 300A. |
+| `updateStatus` | `protected` | query | Move a reporting year through the approval workflow. Role-based transition rules enforced server-side. / |
 | `create` | `recordkeeper` | query | Create a reporting year for an establishment. |
 | `updateStats` | `recordkeeper` | query | Update employment stats (needed for TRIR/DART calculation). |
 | `certify300A` | `executive` | query | Certify the 300A annual summary. Per 1904.32(b)(3), only a company executive, owner, officer, or highest-ranking company official may certify. Enforced by executiveProcedure middleware (EXECUTIVE or ADMIN role). / |

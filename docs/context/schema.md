@@ -20,6 +20,9 @@ Auto-generated from `packages/db/prisma/schema.prisma`. Do not edit manually.
 | `establishmentMemberships` | `EstablishmentMember[]` | @relation("memberUser") |
 | `invitedMembers` | `EstablishmentMember[]` | @relation("inviterUser") |
 | `sentInvitations` | `Invitation[]` |  |
+| `preparedYears` | `ReportingYear[]` | @relation("preparedYears") |
+| `reviewedYears` | `ReportingYear[]` | @relation("reviewedYears") |
+| `approvedYears` | `ReportingYear[]` | @relation("approvedYears") |
 
 ## `Establishment`
 
@@ -48,11 +51,21 @@ Auto-generated from `packages/db/prisma/schema.prisma`. Do not edit manually.
 | `year` | `Int` | // Calendar year, e.g. 2024 |
 | `avgEmployees` | `Int?` |  |
 | `totalHoursWorked` | `Int?` |  |
+| `status` | `String` | @default("DRAFT") |
+| `reviewerComment` | `String?` | // Latest reviewer note (visible to preparer) |
+| `preparedById` | `String?` | // User who submitted for review |
+| `reviewedById` | `String?` | // User who last reviewed |
+| `approvedById` | `String?` | // User who approved |
+| `finalizedAt` | `DateTime?` | // When status reached FINALIZED |
+| `version` | `Int` | @default(1) // Increments on each FINALIZE |
 | `createdAt` | `DateTime` | @default(now()) |
 | `updatedAt` | `DateTime` | @updatedAt |
 | `establishment` | `Establishment` | @relation(fields: [establishmentId], references: [id]) |
 | `cases` | `Case[]` |  |
 | `certifications` | `CertificationRecord[]` |  |
+| `preparedBy` | `User?` | @relation("preparedYears", fields: [preparedById], references: [id]) |
+| `reviewedBy` | `User?` | @relation("reviewedYears", fields: [reviewedById], references: [id]) |
+| `approvedBy` | `User?` | @relation("approvedYears", fields: [approvedById], references: [id]) |
 
 ## `Case`
 

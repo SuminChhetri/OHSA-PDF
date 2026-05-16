@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface EstablishmentDetailPageProps {
   params: { id: string };
@@ -214,6 +215,7 @@ export default function EstablishmentDetailPage({ params }: EstablishmentDetailP
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Avg Employees</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Hours</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Cases</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -229,6 +231,9 @@ export default function EstablishmentDetailPage({ params }: EstablishmentDetailP
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600">
                       {ry._count.cases}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <StatusBadge status={ry.status ?? "DRAFT"} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-3">

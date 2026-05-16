@@ -6,6 +6,8 @@ import { trpc } from "@/lib/trpc";
 import { useSession } from "next-auth/react";
 import { usePdfViewer } from "@/lib/hooks/usePdfViewer";
 import { PdfViewerPanel } from "@/components/PdfViewerPanel";
+import { WorkflowActions } from "@/components/WorkflowActions";
+import { AuditTrailPanel } from "@/components/AuditTrailPanel";
 
 interface Form300APageProps {
   params: { yearId: string };
@@ -115,6 +117,7 @@ export default function Form300APage({ params }: Form300APageProps) {
   if (!data) return null;
 
   const { establishment, year, certification, totals } = data;
+  const role = session?.user.role ?? "";
 
   const hasSaved = data.avgEmployees != null || data.totalHoursWorked != null;
 
@@ -341,6 +344,20 @@ export default function Form300APage({ params }: Form300APageProps) {
         </div>
       </div>
 
+      {/* ── Workflow status & approval ───────────────────────────────── */}
+      <WorkflowActions
+        yearId={yearId}
+        status={data.status}
+        role={role}
+        reviewerComment={data.reviewerComment}
+        version={data.version}
+        finalizedAt={data.finalizedAt}
+        preparedBy={data.preparedBy}
+        reviewedBy={data.reviewedBy}
+        approvedBy={data.approvedBy}
+        onStatusChanged={refetch}
+      />
+
       {/* ── Embedded PDF preview area ────────────────────────────────── */}
       <PdfViewerPanel
         title={viewerTitle || "Form 300A"}
@@ -349,6 +366,9 @@ export default function Form300APage({ params }: Form300APageProps) {
         onClose={closeViewer}
         downloadUrl={`/api/pdf/300a/${yearId}?download=1`}
       />
+
+      {/* ── Activity & Audit Trail ──────────────────────────────────── */}
+      <AuditTrailPanel reportingYearId={yearId} />
 
       {/* ── Certification ────────────────────────────────────────────── */}
       <div className="card p-6">

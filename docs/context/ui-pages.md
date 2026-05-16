@@ -6,6 +6,7 @@ Auto-generated from `apps/web/src/app/`. Do not edit manually.
 
 | Route | File | tRPC Queries Used | Notes |
 |-------|------|-------------------|-------|
+| `/admin` | `apps/web/src/app/(app)/admin/page.tsx` | — |  |
 | `/archive` | `apps/web/src/app/(app)/archive/page.tsx` | `export.csvITA300A.useQuery`, `reportingYears.retentionStatus.useQuery`, `establishments.list.useQuery` | pdf-download |
 | `/cases/new` | `apps/web/src/app/(app)/cases/new/page.tsx` | `wizard.steps.useQuery`, `cases.create.useMutation` | privacy |
 | `/cases` | `apps/web/src/app/(app)/cases/page.tsx` | `establishments.list.useQuery` |  |

@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { LogTable } from "@/components/log/LogTable";
 import { usePdfViewer } from "@/lib/hooks/usePdfViewer";
 import { PdfViewerPanel } from "@/components/PdfViewerPanel";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface YearLogPageProps {
   params: { id: string; yearId: string };
@@ -55,7 +56,10 @@ export default function YearLogPage({ params }: YearLogPageProps) {
             <span>/</span>
             <span className="text-slate-700">{ry?.year ?? yearId} Log</span>
           </div>
-          <h1 className="page-title">OSHA Form 300 — {ry?.year ?? ""} Log</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="page-title">OSHA Form 300 — {ry?.year ?? ""} Log</h1>
+            {ry?.status && <StatusBadge status={ry.status} />}
+          </div>
           {ry?.establishment && (
             <p className="mt-1 text-sm text-slate-500">{ry.establishment.name}</p>
           )}

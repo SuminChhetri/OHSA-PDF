@@ -89,6 +89,9 @@ export const formsRouter = router({
             take: 1,
             include: { certifiedBy: { select: { name: true } } },
           },
+          preparedBy: { select: { id: true, name: true, role: true } },
+          reviewedBy: { select: { id: true, name: true, role: true } },
+          approvedBy: { select: { id: true, name: true, role: true } },
         },
       });
 
@@ -140,6 +143,14 @@ export const formsRouter = router({
           cfr: "29 CFR 1904.32(b)(6)",
         },
         cfr: "29 CFR 1904.32",
+        // Workflow
+        status: ry.status ?? "DRAFT",
+        reviewerComment: ry.reviewerComment,
+        version: ry.version ?? 1,
+        finalizedAt: ry.finalizedAt,
+        preparedBy: ry.preparedBy,
+        reviewedBy: ry.reviewedBy,
+        approvedBy: ry.approvedBy,
       };
     }),
 

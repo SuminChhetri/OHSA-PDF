@@ -2,6 +2,30 @@ import { z } from "zod";
 import { router, protectedProcedure, recordkeeperProcedure, executiveProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
+// Valid form-status values
+export type FormStatus = "DRAFT" | "IN_REVIEW" | "NEEDS_CHANGES" | "APPROVED" | "FINALIZED" | "ARCHIVED";
+const FORM_STATUS = z.enum(["DRAFT", "IN_REVIEW", "NEEDS_CHANGES", "APPROVED", "FINALIZED", "ARCHIVED"]);
+
+// Which roles may trigger each target status
+const TRANSITION_ROLES: Record<FormStatus, string[]> = {
+  DRAFT:         ["ADMIN"],                              // reopen — admin only
+  IN_REVIEW:     ["RECORDKEEPER", "REVIEWER", "EXECUTIVE", "ADMIN"],
+  NEEDS_CHANGES: ["REVIEWER", "EXECUTIVE", "ADMIN"],
+  APPROVED:      ["REVIEWER", "EXECUTIVE", "ADMIN"],
+  FINALIZED:     ["EXECUTIVE", "ADMIN"],
+  ARCHIVED:      ["ADMIN"],
+};
+
+// Which source statuses may flow into each target status
+const VALID_FROM: Record<FormStatus, FormStatus[]> = {
+  DRAFT:         ["IN_REVIEW", "NEEDS_CHANGES", "APPROVED", "FINALIZED"], // reopen from any
+  IN_REVIEW:     ["DRAFT", "NEEDS_CHANGES"],
+  NEEDS_CHANGES: ["IN_REVIEW"],
+  APPROVED:      ["IN_REVIEW"],
+  FINALIZED:     ["APPROVED"],
+  ARCHIVED:      ["FINALIZED"],
+};
+
 export const reportingYearsRouter = router({
   /** List reporting years for an establishment (newest first). */
   list: protectedProcedure
@@ -34,9 +58,90 @@ export const reportingYearsRouter = router({
             include: { certifiedBy: { select: { name: true, role: true } } },
           },
           _count: { select: { cases: true } },
+          preparedBy: { select: { id: true, name: true, role: true } },
+          reviewedBy: { select: { id: true, name: true, role: true } },
+          approvedBy: { select: { id: true, name: true, role: true } },
         },
       });
       return ry;
+    }),
+
+  /**
+   * Move a reporting year through the approval workflow.
+   * Role-based transition rules enforced server-side.
+   */
+  updateStatus: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        status: FORM_STATUS,
+        comment: z.string().max(2000).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.session.user.role as FormStatus extends string ? string : never;
+      const userId = ctx.session.user.id;
+
+      const ry = await ctx.prisma.reportingYear.findUniqueOrThrow({
+        where: { id: input.id },
+      });
+
+      const currentStatus = (ry.status ?? "DRAFT") as FormStatus;
+      const targetStatus = input.status;
+
+      // Validate role
+      if (!TRANSITION_ROLES[targetStatus].includes(role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Your role (${role}) cannot set status to ${targetStatus}.`,
+        });
+      }
+
+      // Validate source → target transition
+      const validFrom = VALID_FROM[targetStatus];
+      if (!validFrom.includes(currentStatus)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot transition from ${currentStatus} to ${targetStatus}.`,
+        });
+      }
+
+      const updateData: Record<string, unknown> = {
+        status: targetStatus,
+        reviewerComment: input.comment ?? ry.reviewerComment,
+      };
+
+      // Track who performed each workflow action
+      if (["DRAFT", "IN_REVIEW"].includes(targetStatus) && !ry.preparedById) {
+        updateData.preparedById = userId;
+      }
+      if (["NEEDS_CHANGES", "APPROVED"].includes(targetStatus)) {
+        updateData.reviewedById = userId;
+        if (targetStatus === "APPROVED") updateData.approvedById = userId;
+      }
+      if (targetStatus === "FINALIZED") {
+        updateData.finalizedAt = new Date();
+        updateData.version = (ry.version ?? 1) + 1;
+      }
+
+      const updated = await ctx.prisma.reportingYear.update({
+        where: { id: input.id },
+        data: updateData,
+      });
+
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId,
+          action: "STATUS_CHANGE",
+          entityType: "ReportingYear",
+          entityId: input.id,
+          before: JSON.stringify({ status: currentStatus }),
+          after: JSON.stringify({ status: targetStatus }),
+          reason: input.comment,
+        },
+      });
+
+      return updated;
     }),
 
   /** Create a reporting year for an establishment. */

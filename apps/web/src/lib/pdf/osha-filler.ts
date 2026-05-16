@@ -7,7 +7,7 @@
  * Page indices (0-based): Form 300 = 6, Form 300A = 7, Form 301 = 9.
  */
 
-import { PDFDocument, PDFName, PDFDict, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFName, PDFDict, StandardFonts, rgb } from "pdf-lib";
 
 const OSHA_PACKAGE_URL =
   "https://www.osha.gov/sites/default/files/OSHA-RK-Forms-Package.pdf";
@@ -155,45 +155,109 @@ export type Data300A = {
   } | null;
 };
 
+// Fields to black-out when producing a redacted 300A PDF
+const REDACT_FIELDS_300A = [
+  "Summary of Injury/Illness Establishment Name",
+  "Summary of Injury/Illness Street",
+  "Summary of Injury/Illness City",
+  "Summary of Injury/Illness State",
+  "Summary of Injury/Illness Zip",
+  "Summary of Injury/Illness NAICS",
+  "Summary of Injury/Illness Industry description",
+  "Summary of Injury/Illness Phone",
+];
+
 export async function fill300A(data: Data300A, lock = false, redact = false): Promise<Uint8Array> {
-  return buildFormPdf((form) => {
-    // The 300A form has "Year 20__" preprinted — fill only the 2-digit suffix
-    setText(form, "Summary of Injury/Illness Year", String(data.year).slice(-2));
-    setText(form, "Summary of Injury/Illness Establishment Name", redact ? "REDACTED" : data.establishment.name);
-    setText(form, "Summary of Injury/Illness Street", redact ? "REDACTED" : data.establishment.street);
-    setText(form, "Summary of Injury/Illness City", redact ? "REDACTED" : data.establishment.city);
-    setText(form, "Summary of Injury/Illness State", redact ? "—" : data.establishment.state);
-    setText(form, "Summary of Injury/Illness Zip", redact ? "—" : data.establishment.zip);
-    setText(form, "Summary of Injury/Illness NAICS", redact ? "—" : data.establishment.naicsCode);
-    setText(form, "Summary of Injury/Illness Industry description", redact ? "" : (data.establishment.industryDescription ?? ""));
-    setText(form, "Summary of Injury/Illness Phone", redact ? "" : (data.establishment.phone ?? ""));
-    setText(form, "Summary of Injury/Illness Annual avg num of employees", data.avgEmployees ?? "");
-    setText(form, "Summary of Injury/Illness Total hours worked by all employees last year", data.totalHoursWorked ?? "");
+  const bytes = await fetchPackage();
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const form = doc.getForm();
 
-    // Number of cases (columns G–J)
-    setText(form, "Total Deaths Summary", data.totals.totalDeaths);
-    setText(form, "Days away from work Summary", data.totals.totalDaysAwayFromWork);
-    setText(form, "Job transfer or restriction Summary", data.totals.totalJobTransferOrRestriction);
-    setText(form, "Other recordable cases Summary", data.totals.totalOtherRecordable);
+  // ── Fill all fields with real data ────────────────────────────────────────
+  setText(form, "Summary of Injury/Illness Year", String(data.year).slice(-2));
+  setText(form, "Summary of Injury/Illness Establishment Name", data.establishment.name);
+  setText(form, "Summary of Injury/Illness Street", data.establishment.street);
+  setText(form, "Summary of Injury/Illness City", data.establishment.city);
+  setText(form, "Summary of Injury/Illness State", data.establishment.state);
+  setText(form, "Summary of Injury/Illness Zip", data.establishment.zip);
+  setText(form, "Summary of Injury/Illness NAICS", data.establishment.naicsCode);
+  setText(form, "Summary of Injury/Illness Industry description", data.establishment.industryDescription ?? "");
+  setText(form, "Summary of Injury/Illness Phone", data.establishment.phone ?? "");
+  setText(form, "Summary of Injury/Illness Annual avg num of employees", data.avgEmployees ?? "");
+  setText(form, "Summary of Injury/Illness Total hours worked by all employees last year", data.totalHoursWorked ?? "");
 
-    // Number of days (columns K–L)
-    setText(form, "Number of days injured or ill away from work Summary", data.totals.totalDaysAway);
-    setText(form, "On job transfer or restriction Summary", data.totals.totalDaysRestricted);
+  setText(form, "Total Deaths Summary", data.totals.totalDeaths);
+  setText(form, "Days away from work Summary", data.totals.totalDaysAwayFromWork);
+  setText(form, "Job transfer or restriction Summary", data.totals.totalJobTransferOrRestriction);
+  setText(form, "Other recordable cases Summary", data.totals.totalOtherRecordable);
+  setText(form, "Number of days injured or ill away from work Summary", data.totals.totalDaysAway);
+  setText(form, "On job transfer or restriction Summary", data.totals.totalDaysRestricted);
+  setText(form, "Injury Summary", data.totals.totalInjuries);
+  setText(form, "Skin Disorder Summary", data.totals.totalSkinDisorders);
+  setText(form, "Respiratory Cond Summary", data.totals.totalRespiratoryConditions);
+  setText(form, "Poisoning Summary", data.totals.totalPoisonings);
+  setText(form, "Hearing Loss Summary", data.totals.totalHearingLoss);
+  setText(form, "All other Summary", data.totals.totalAllOtherIllnesses);
 
-    // Illness/injury type totals (columns M1–M6)
-    setText(form, "Injury Summary", data.totals.totalInjuries);
-    setText(form, "Skin Disorder Summary", data.totals.totalSkinDisorders);
-    setText(form, "Respiratory Cond Summary", data.totals.totalRespiratoryConditions);
-    setText(form, "Poisoning Summary", data.totals.totalPoisonings);
-    setText(form, "Hearing Loss Summary", data.totals.totalHearingLoss);
-    setText(form, "All other Summary", data.totals.totalAllOtherIllnesses);
+  if (data.certification && !redact) {
+    setText(form, "Summary of Injury/Illness Date",
+      new Date(data.certification.certifiedAt).toLocaleDateString("en-US"));
+  }
 
-    // Certification date (only field that exists in the PDF for the cert section)
-    if (data.certification && !redact) {
-      setText(form, "Summary of Injury/Illness Date",
-        new Date(data.certification.certifiedAt).toLocaleDateString("en-US"));
+  // ── Collect widget positions for redaction BEFORE flattening ──────────────
+  type Rect = { x: number; y: number; width: number; height: number };
+  const redactRects: Rect[] = [];
+  if (redact) {
+    for (const fieldName of REDACT_FIELDS_300A) {
+      try {
+        const field = form.getTextField(fieldName);
+        for (const widget of field.acroField.getWidgets()) {
+          redactRects.push(widget.getRectangle());
+        }
+      } catch { /* field absent */ }
     }
-  }, FORM_PAGES["300a"], lock);
+  }
+
+  // ── Flatten (always when downloading / redacting — produces read-only PDF) ─
+  const shouldLock = lock || redact;
+  let helvetica = null as Awaited<ReturnType<typeof doc.embedFont>> | null;
+  if (shouldLock) {
+    helvetica = await doc.embedFont(StandardFonts.Helvetica);
+    doc.getForm().updateFieldAppearances(helvetica);
+    doc.getForm().flatten();
+  }
+
+  // ── Remove unwanted pages ─────────────────────────────────────────────────
+  const total = doc.getPageCount();
+  for (let i = total - 1; i >= 0; i--) {
+    if (i !== FORM_PAGES["300a"]) doc.removePage(i);
+  }
+
+  // ── Draw professional black redaction boxes ───────────────────────────────
+  if (redact && redactRects.length > 0) {
+    const page = doc.getPage(0); // 300a is now the only page
+    const font = helvetica ?? await doc.embedFont(StandardFonts.Helvetica);
+    for (const rect of redactRects) {
+      // Solid black box covers the underlying text permanently
+      page.drawRectangle({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        color: rgb(0, 0, 0),
+      });
+      // White "REDACTED" label inside the box
+      const fontSize = Math.max(6, Math.min(9, rect.height - 3));
+      page.drawText("REDACTED", {
+        x: rect.x + 3,
+        y: rect.y + (rect.height - fontSize) / 2,
+        size: fontSize,
+        font,
+        color: rgb(1, 1, 1),
+      });
+    }
+  }
+
+  return doc.save();
 }
 
 // ── Form 300 ─────────────────────────────────────────────────────────────────
