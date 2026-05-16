@@ -89,11 +89,14 @@ export const formsRouter = router({
             take: 1,
             include: { certifiedBy: { select: { name: true } } },
           },
-          preparedBy: { select: { id: true, name: true, role: true } },
-          reviewedBy: { select: { id: true, name: true, role: true } },
-          approvedBy: { select: { id: true, name: true, role: true } },
         },
       });
+      const userSelect = { select: { id: true, name: true, role: true } } as const;
+      const [preparedBy, reviewedBy, approvedBy] = await Promise.all([
+        ry.preparedById ? ctx.prisma.user.findUnique({ where: { id: ry.preparedById }, ...userSelect }) : null,
+        ry.reviewedById ? ctx.prisma.user.findUnique({ where: { id: ry.reviewedById }, ...userSelect }) : null,
+        ry.approvedById ? ctx.prisma.user.findUnique({ where: { id: ry.approvedById }, ...userSelect }) : null,
+      ]);
 
       const cases = await ctx.prisma.case.findMany({
         where: { reportingYearId: input.reportingYearId, isRecordable: true },
@@ -148,9 +151,9 @@ export const formsRouter = router({
         reviewerComment: ry.reviewerComment,
         version: ry.version ?? 1,
         finalizedAt: ry.finalizedAt,
-        preparedBy: ry.preparedBy,
-        reviewedBy: ry.reviewedBy,
-        approvedBy: ry.approvedBy,
+        preparedBy,
+        reviewedBy,
+        approvedBy,
       };
     }),
 

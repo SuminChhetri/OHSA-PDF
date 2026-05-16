@@ -21,11 +21,11 @@ export async function GET(
 
   const ctx = await createInnerTRPCContext(session);
   const caller = appRouter.createCaller(ctx);
-  const c = await caller.cases.get({ id: params.caseId });
-
-  if (!c) return NextResponse.json({ error: "Case not found" }, { status: 404 });
 
   try {
+    const c = await caller.cases.get({ id: params.caseId });
+
+    if (!c) return NextResponse.json({ error: "Case not found" }, { status: 404 });
     const sp = req.nextUrl.searchParams;
     const forceDownload = sp.get("download") === "1";
     const lockOnly = sp.get("lock") === "1";

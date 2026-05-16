@@ -58,12 +58,15 @@ export const reportingYearsRouter = router({
             include: { certifiedBy: { select: { name: true, role: true } } },
           },
           _count: { select: { cases: true } },
-          preparedBy: { select: { id: true, name: true, role: true } },
-          reviewedBy: { select: { id: true, name: true, role: true } },
-          approvedBy: { select: { id: true, name: true, role: true } },
         },
       });
-      return ry;
+      const userSelect = { select: { id: true, name: true, role: true } } as const;
+      const [preparedBy, reviewedBy, approvedBy] = await Promise.all([
+        ry.preparedById ? ctx.prisma.user.findUnique({ where: { id: ry.preparedById }, ...userSelect }) : null,
+        ry.reviewedById ? ctx.prisma.user.findUnique({ where: { id: ry.reviewedById }, ...userSelect }) : null,
+        ry.approvedById ? ctx.prisma.user.findUnique({ where: { id: ry.approvedById }, ...userSelect }) : null,
+      ]);
+      return { ...ry, preparedBy, reviewedBy, approvedBy };
     }),
 
   /**

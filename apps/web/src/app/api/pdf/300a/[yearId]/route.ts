@@ -26,13 +26,13 @@ export async function GET(
 
   const ctx = await createInnerTRPCContext(session);
   const caller = appRouter.createCaller(ctx);
-  const data = await caller.forms.get300A({ reportingYearId: params.yearId });
-
-  if (!data?.establishment) {
-    return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
-  }
 
   try {
+    const data = await caller.forms.get300A({ reportingYearId: params.yearId });
+
+    if (!data?.establishment) {
+      return NextResponse.json({ error: "Reporting year not found" }, { status: 404 });
+    }
     const sp = req.nextUrl.searchParams;
     const forceDownload = sp.get("download") === "1";
     const lockOnly = sp.get("lock") === "1";
